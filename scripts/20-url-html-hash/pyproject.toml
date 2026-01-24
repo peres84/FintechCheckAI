@@ -1,0 +1,12 @@
+[project]
+name = "20-url-html-hash"
+version = "0.1.0"
+description = "Fetches HTML from a URL, calculates a hash, and stores both in a Tower Iceberg table"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "tower>=0.3.43",
+    "pyiceberg",
+    "pyarrow",
+    "polars>=1.29.0",
+]

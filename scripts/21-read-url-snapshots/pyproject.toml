@@ -1,0 +1,12 @@
+[project]
+name = "21-read-url-snapshots"
+version = "0.1.0"
+description = "Reads and displays contents from the url_html_snapshots Iceberg table"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "tower>=0.3.43",
+    "pyiceberg",
+    "pyarrow",
+    "polars>=1.29.0",
+]

@@ -1,0 +1,34 @@
+[app]
+name = "ticker-update-agent"
+short_description = "Update ticker data for a given list of tickers"
+script = "./agent.py"
+
+source = [
+	"./*.py",
+	"./pyproject.toml"	
+]
+
+[[parameters]]
+name = "USER_INPUT"
+description = "The user query to the agent"
+default = "What was the stock price for each given ticker on a particular day?"
+
+[[parameters]]
+name = "TICKERS"
+description = "Comma-separated list of stock tickers, e.g. AMZN, NFLX, MSFT"
+default = "NVDA"
+
+[[parameters]]
+name = "PULL_DATE"
+description = "Format: YYYY-MM-DD. The date of stock data to pull. If no date is entered, the app will take yesterday's date."
+default = "2025-06-17"
+
+[[parameters]]
+name = "INFERENCE_SERVER_BASE_URL"
+description = "The base URL of the inference server (leave empty to use default OpenAI API or set to e.g. \"http://127.0.0.1:8080/v1\")"
+default = ""
+
+[[parameters]]
+name = "MODEL_TO_USE"
+description = "Name of the LLM model to use"
+default = "gpt-4o-mini"

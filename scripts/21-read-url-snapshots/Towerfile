@@ -1,0 +1,7 @@
+[app]
+name = "read-url-snapshots"
+script = "./task.py"
+source = [
+	"./*.py",
+	"pyproject.toml"
+]

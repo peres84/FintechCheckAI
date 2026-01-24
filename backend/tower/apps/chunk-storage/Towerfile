@@ -1,1 +1,37 @@
-# Towerfile placeholder for chunk storage app
+[app]
+name = "chunk-storage"
+script = "./main.py"
+source = [
+    "./*.py",
+    "pyproject.toml"
+]
+
+[[parameters]]
+name = "DOCUMENT_ID"
+description = "Document ID to attach chunks to"
+default = ""
+
+[[parameters]]
+name = "CHUNKS_PATH"
+description = "Path to parsed_output.json (pages)"
+default = "../../../parsed_output.json"
+
+[[parameters]]
+name = "CHUNKS_URL"
+description = "Public URL to parsed_output.json (for remote runs)"
+default = ""
+
+[[parameters]]
+name = "CATALOG"
+description = "Tower catalog name"
+default = "database_catalog"
+
+[[parameters]]
+name = "NAMESPACE"
+description = "Tower namespace"
+default = "default"
+
+[[parameters]]
+name = "DRY_RUN"
+description = "Skip writes when true"
+default = "false"

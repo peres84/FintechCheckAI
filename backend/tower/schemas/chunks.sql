@@ -3,5 +3,6 @@ CREATE TABLE IF NOT EXISTS chunks (
   document_id STRING,
   page_number INT,
   content STRING,
-  embedding ARRAY<FLOAT>
+  embedding ARRAY<FLOAT>,
+  created_at TIMESTAMP
 );

@@ -1,0 +1,61 @@
+#
+# Dev artifacts
+#
+*.sw[onp]
+
+# OS generated files #
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# temp python files
+**/__pycache__/
+*.pyc
+
+# 
+# Random test artifacts
+#
+.venv
+secrets.yaml
+secrets.yml
+.idea
+.run
+.vscode
+
+# local and unfinished code
+**/*_local.py
+**/*_local.py
+*/_local.py
+
+#local backups
+backup
+#output files
+out
+#ignore files
+ignore
+
+#
+# Ignore for 04-dlthub-data-pond
+#
+04-dlthub-data-pond/_data/*.json.gz
+04-dlthub-data-pond/_storage/warehouse.db
+04-dlthub-data-pond/_storage/delta_lake
+04-dlthub-data-pond/deps/*.tar.gz
+04-dlthub-data-pond/deps/*.whl
+
+#
+# Ignore for 07-dlthub-portable-datalake
+#
+07-dlthub-portable-datalake/dlthub_data_pond/transformations/dbt_aggregate_issues/logs/*
+07-dlthub-portable-datalake/dlthub_data_pond/transformations/dbt_aggregate_issues/target/*
+07-dlthub-portable-datalake/.user.yml
+07-dlthub-portable-datalake/.python-version
+*.duckdb
+
+
+
+

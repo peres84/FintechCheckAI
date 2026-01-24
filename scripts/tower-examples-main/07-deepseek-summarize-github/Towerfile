@@ -1,0 +1,37 @@
+[app]
+name = "deepseek-summarize"
+script = "./app.py"
+
+source = [
+	"./.dlt/config.toml",
+	"./core/**/*.py",
+	"./pyproject.toml",
+    "./app.py"
+]
+
+[[parameters]]
+name = "gh_repo_owner"
+description = "The owner of the GitHub repo"
+default = "tower"
+
+[[parameters]]
+name = "gh_repo"
+description = "The name of the GitHub repo"
+default = "tower-cli"
+
+[[parameters]]
+name = "gh_issue_number"
+description = "The issue number in that repo"
+default = "11"
+
+[[parameters]]
+name = "model_to_use"
+description = "Name and version of the model to use to generate the summary. E.g. deepseek-r1:14b when using ollama or deepseek-ai/DeepSeek-R1 when using Together.ai"
+default = "deepseek-ai/DeepSeek-R1"
+
+
+[[parameters]]
+name = "max_tokens"
+description = "The maximum length of output, measured in tokens"
+default = "1000"
+

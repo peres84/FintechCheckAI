@@ -1,0 +1,7 @@
+{
+  "pages": [
+    {"page_number": 1, "content": "Alpha beta chunk from dummy pdf."},
+    {"page_number": 2, "content": "Gamma delta chunk for retrieval."},
+    {"page_number": 3, "content": "Alpha appears again in this chunk."}
+  ]
+}

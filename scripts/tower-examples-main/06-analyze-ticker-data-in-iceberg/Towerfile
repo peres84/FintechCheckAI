@@ -1,0 +1,12 @@
+[app]
+name = "analyze-ticker-data-in-iceberg"
+script = "./task.py"
+source = [
+	"./*.py",
+	"./pyproject.toml"
+]
+
+[[parameters]]
+name = "ANALYZE_DATE"
+description = "The date as of which you want recommendations"
+default = ""

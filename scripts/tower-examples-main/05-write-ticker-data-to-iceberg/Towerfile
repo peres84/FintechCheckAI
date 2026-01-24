@@ -1,0 +1,24 @@
+[app]
+name = "write-ticker-data-to-iceberg"
+script = "./task.py"
+source = [
+	"./*.py",
+	"pyproject.toml"
+]
+
+
+[[parameters]]
+name = "PULL_DATE"
+description = "The date of stock data to pull. If no date is entered, the app will take yesterday's date."
+default = ""
+
+[[parameters]]
+name = "END_DATE"
+description = "Optional end date for the data pull. If not provided, the app will use PULL_DATE + 1 day. Data is pulled from PULL_DATE up to (but not including) END_DATE."
+default = ""
+
+[[parameters]]
+name = "TICKERS"
+description = "Comma-separated list of stock tickers"
+default = "MSFT,AAPL,GOOGL,NVDA"
+

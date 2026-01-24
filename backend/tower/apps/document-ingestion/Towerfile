@@ -1,1 +1,55 @@
-# Towerfile placeholder for document ingestion app
+[app]
+name = "document-ingestion"
+script = "./main.py"
+source = [
+    "./*.py",
+    "pyproject.toml",
+]
+schedule = ""
+description = ""
+import_paths = []
+
+[[parameters]]
+name = "PDF_PATH"
+description = "Local path to the PDF to ingest"
+default = ""
+
+[[parameters]]
+name = "PDF_URL"
+description = "Public URL to the PDF (for remote runs)"
+default = ""
+
+[[parameters]]
+name = "PDF_FETCH_TIMEOUT"
+description = "Download timeout in seconds"
+default = "300"
+
+[[parameters]]
+name = "COMPANY_ID"
+description = "Company identifier"
+default = "duolingo"
+
+[[parameters]]
+name = "VERSION"
+description = "Document version label"
+default = "q3-2025"
+
+[[parameters]]
+name = "SOURCE_URL"
+description = "Optional source URL"
+default = ""
+
+[[parameters]]
+name = "CATALOG"
+description = "Tower catalog name"
+default = "database_catalog"
+
+[[parameters]]
+name = "NAMESPACE"
+description = "Tower namespace"
+default = "default"
+
+[[parameters]]
+name = "DRY_RUN"
+description = "Skip writes when true"
+default = "false"

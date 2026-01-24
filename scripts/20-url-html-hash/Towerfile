@@ -1,0 +1,13 @@
+[app]
+name = "url-html-hash"
+script = "./task.py"
+source = [
+	"./*.py",
+	"pyproject.toml"
+]
+
+
+[[parameters]]
+name = "URL"
+description = "The URL to fetch HTML content from"
+default = "https://example.com"

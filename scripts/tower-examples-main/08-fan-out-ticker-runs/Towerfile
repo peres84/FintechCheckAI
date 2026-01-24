@@ -1,0 +1,17 @@
+[app]
+name = "fan-out-ticker-runs"
+script = "./task.py"
+source= [
+	"./*.py",
+	"./pyproject.toml"
+]
+
+[[parameters]]
+name = "PULL_DATE"
+description = "The date of stock data to pull. If no date is entered, the app will take yesterday's date."
+default = ""
+
+[[parameters]]
+name = "TICKERS"
+description = "Comma-separated list of stock tickers"
+default = "AMZN,META,TSLA"
