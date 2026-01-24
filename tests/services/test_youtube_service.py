@@ -30,6 +30,9 @@ load_dotenv(env_path)
 IMAGEKIT_UPLOAD_URL = "https://upload.imagekit.io/api/v1/files/upload"
 IMAGEKIT_DELETE_URL = "https://api.imagekit.io/v1/files"
 
+# Test configuration flags
+SKIP_TRANSCRIPT_CHECK = True  # Set to True to test only audio transcription flow
+
 # Environment variables
 RUNPOD_API_KEY = os.getenv("RUNPOD_API_KEY")
 RUNPOD_ENDPOINT_ID = os.getenv("RUNPOD_ENDPOINT_ID")
@@ -297,7 +300,6 @@ async def transcribe_with_runpod(audio_url: str) -> dict:
         raise TypeError("audio_url must be a string.")
 
     try:
-        # Try the newer RunPod API method
         import runpod
         
         # Initialize the client
@@ -305,35 +307,45 @@ async def transcribe_with_runpod(audio_url: str) -> dict:
         
         print(f"Calling RunPod with endpoint: {RUNPOD_ENDPOINT_ID}")
         print(f"Audio URL: {audio_url}")
+        print(f"RunPod version: {runpod.__version__ if hasattr(runpod, '__version__') else 'Unknown'}")
         
-        # Try different API methods based on the version
-        job = None
+        # Create endpoint object
+        endpoint = runpod.Endpoint(RUNPOD_ENDPOINT_ID)
+        print(f"Endpoint object created: {endpoint}")
+        
+        # Health check to wake up serverless endpoint
+        print("Checking endpoint health to warm up...")
         try:
-            # Method 1: run_sync (older versions)
-            print("Trying runpod.run_sync...")
-            job = runpod.run_sync(
-                RUNPOD_ENDPOINT_ID,
-                input={"audio_file": audio_url},
-                api_key=RUNPOD_API_KEY
-            )
-        except AttributeError:
-            try:
-                # Method 2: run (newer versions)
-                print("Trying runpod.run...")
-                job = runpod.run(
-                    RUNPOD_ENDPOINT_ID,
-                    input={"audio_file": audio_url}
-                )
-            except AttributeError:
-                # Method 3: Direct endpoint call
-                print("Trying endpoint.run_sync...")
-                endpoint = runpod.Endpoint(RUNPOD_ENDPOINT_ID)
-                job = endpoint.run_sync({"audio_file": audio_url})
+            health = endpoint.health()
+            print(f"RunPod health: {health}")
+        except Exception as e:
+            print(f"Health check failed (this might be normal): {e}")
         
-        print(f"RunPod job result: {job}")
-        print(f"RunPod job type: {type(job)}")
+        # Use the correct input format for Faster Whisper endpoint
+        runpod_input = {
+            "input": {
+                "audio": audio_url,     # Required: audio file URL
+                "model": "turbo"        # Optional: model selection (base, small, medium, large, turbo)
+            }
+        }
         
-        return job
+        print(f"Calling run_sync with correct payload: {runpod_input}")
+        
+        # Synchronous call with timeout
+        result = endpoint.run_sync(runpod_input, timeout=180)
+        
+        print(f"RunPod run_sync result: {result}")
+        print(f"RunPod result type: {type(result)}")
+        
+        if result is None:
+            print("RunPod returned None - this should not happen with correct format")
+            return {
+                "transcript": "",
+                "status": "failed", 
+                "error": "RunPod returned None despite correct input format"
+            }
+        
+        return result
 
     except (ConnectionError, Timeout, HTTPError) as e:
         raise RuntimeError(f"Network or API error when calling RunPod: {e}")
@@ -355,18 +367,21 @@ async def main_async(youtube_url: str):
         print(f"Temporary working directory created at {temp_dir}")
         
         # ========== Try YouTube transcript first ==========
-        print("Checking for YouTube captions...")
-        try:
-            transcript = extract_full_transcript(video_id)
-            if transcript:
-                print("Transcript successfully extracted from YouTube captions!")
-                with open(f"{video_id}_transcript.txt", "w", encoding="utf-8") as f:
-                    f.write(transcript)
-                print(f"Full transcript saved as '{video_id}_transcript.txt'.")
-                return transcript
-        except (TranscriptsDisabled, NoTranscriptFound, VideoUnavailable, RuntimeError) as e:
-            print(f"No transcript available via YouTube captions: {e}")
-            print("Proceeding with audio transcription flow...")
+        if not SKIP_TRANSCRIPT_CHECK:
+            print("Checking for YouTube captions...")
+            try:
+                transcript = extract_full_transcript(video_id)
+                if transcript:
+                    print("Transcript successfully extracted from YouTube captions!")
+                    with open(f"{video_id}_transcript.txt", "w", encoding="utf-8") as f:
+                        f.write(transcript)
+                    print(f"Full transcript saved as '{video_id}_transcript.txt'.")
+                    return transcript
+            except (TranscriptsDisabled, NoTranscriptFound, VideoUnavailable, RuntimeError) as e:
+                print(f"No transcript available via YouTube captions: {e}")
+                print("Proceeding with audio transcription flow...")
+        else:
+            print("Skipping transcript check - testing audio transcription flow only...")
 
         # ========== Download audio ==========
         print("Downloading full audio for transcription...")
@@ -414,7 +429,8 @@ async def main_async(youtube_url: str):
         transcript_text = ""
         if isinstance(runpod_result, dict):
             # Try different possible keys for the transcript
-            transcript_text = (runpod_result.get("transcript") or 
+            transcript_text = (runpod_result.get("transcription") or 
+                             runpod_result.get("transcript") or 
                              runpod_result.get("text") or 
                              runpod_result.get("output") or 
                              str(runpod_result))
@@ -447,6 +463,7 @@ if __name__ == "__main__":
     print(f"RUNPOD_API_KEY loaded: {'Yes' if RUNPOD_API_KEY else 'No'}")
     print(f"RUNPOD_ENDPOINT_ID loaded: {'Yes' if RUNPOD_ENDPOINT_ID else 'No'}")
     print(f"IMAGEKIT_PRIVATE_KEY loaded: {'Yes' if IMAGEKIT_PRIVATE_KEY else 'No'}")
+    print(f"SKIP_TRANSCRIPT_CHECK: {SKIP_TRANSCRIPT_CHECK}")
     print("========================\n")
     
     # Test URLs - try these in order if one fails

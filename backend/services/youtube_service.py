@@ -203,22 +203,30 @@ async def _transcribe_with_runpod(audio_url: str) -> Dict[str, Any]:
     try:
         runpod.api_key = RUNPOD_API_KEY
         
-        # Try different API methods based on the version
-        job = None
-        try:
-            job = runpod.run_sync(
-                RUNPOD_ENDPOINT_ID,
-                input={"audio_file": audio_url},
-                api_key=RUNPOD_API_KEY
-            )
-        except AttributeError:
-            try:
-                job = runpod.run(RUNPOD_ENDPOINT_ID, input={"audio_file": audio_url})
-            except AttributeError:
-                endpoint = runpod.Endpoint(RUNPOD_ENDPOINT_ID)
-                job = endpoint.run_sync({"audio_file": audio_url})
+        # Create endpoint object
+        endpoint = runpod.Endpoint(RUNPOD_ENDPOINT_ID)
         
-        return job or {"transcript": "", "status": "failed", "error": "RunPod returned None"}
+        # Health check to warm up serverless endpoint
+        try:
+            health = endpoint.health()
+        except Exception:
+            pass  # Health check failure is not critical
+        
+        # Use the correct input format for Faster Whisper endpoint
+        runpod_input = {
+            "input": {
+                "audio": audio_url,     # Required: audio file URL
+                "model": "turbo"        # Optional: model selection
+            }
+        }
+        
+        # Synchronous call with timeout
+        result = endpoint.run_sync(runpod_input, timeout=180)
+        
+        if result is None:
+            return {"transcript": "", "status": "failed", "error": "RunPod returned None"}
+        
+        return result
 
     except (ConnectionError, Timeout, HTTPError) as e:
         raise RuntimeError(f"Network or API error when calling RunPod: {e}")
@@ -281,6 +289,10 @@ async def fetch_transcript(video_url: str) -> Dict[str, Any]:
                 "source": "audio_transcription",
                 "video_id": video_id
             })
+            
+            # Extract clean transcript text if available
+            if "transcription" in result:
+                result["transcript"] = result["transcription"]
             
             return result
             
