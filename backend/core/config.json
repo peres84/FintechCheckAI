@@ -5,5 +5,15 @@
         "logging_level":"debug",
         "dir_name":"logs",
         "log_file_name":"fintech_check_ai"
+    },
+
+    "endpoints": {
+        "root_directory_endpoint":{
+            "request_limit":25,
+            "unit_of_time_for_limit":"m",
+            "endpoint_prefix": "",
+            "endpoint_tag":"root",
+            "endpoint_route": "/"
+        }
     }
 }
