@@ -19,17 +19,28 @@ This document compares what's currently implemented against the PRD requirements
 - ✅ AI Agent service (`backend/services/ai_agent_service.py`) - **JUST COMPLETED**
 - ✅ AI Agent API endpoints (`backend/api/routes/ai_agent.py`) - **JUST COMPLETED**
 
+### Completed (Recent):
+- ✅ **Opik service fully implemented** (`backend/services/opik_service.py`) - **JUST COMPLETED**
+  - Lazy initialization (works without SDK)
+  - Track claim extraction, chunk retrieval, verification, LLM calls
+  - Error logging support
+  - Comprehensive tests created
+- ✅ **Tower apps fully implemented** - **FROM COLLEAGUE'S COMMIT**
+  - `document-ingestion` ✅ - Downloads PDFs, generates SHA256, stores in Tower
+  - `chunk-storage` ✅ - Stores chunks with embeddings in Tower
+  - `rag-chunk-query` ✅ - Queries chunks using RAG (NEW!)
+  - All apps have proper Towerfiles and handlers
+  - Documented in `docs/TOWER_RUNBOOK.md`
+
 ### Partially Complete:
-- ⚠️ Opik service exists but not implemented (`backend/services/opik_service.py` - just placeholder)
-- ⚠️ Tower CLI setup - schemas exist but Tower apps are placeholders
+- ⚠️ Tower service integration - Apps exist but need full integration with API endpoints
 
 ### Missing:
-- ❌ Opik integration (Task 0.7) - needs full implementation
-- ❌ Tower apps fully functional (document-ingestion, chunk-storage, verification-logs are placeholders)
+- ❌ Verification-logs Tower app (still placeholder)
 
 ---
 
-## ⚠️ Phase 1: Document Ingestion (Tower Apps)
+## ✅ Phase 1: Document Ingestion (Tower Apps)
 
 ### Completed:
 - ✅ Iceberg schemas created:
@@ -37,19 +48,34 @@ This document compares what's currently implemented against the PRD requirements
   - `documents.sql` ✅
   - `chunks.sql` ✅
   - `verifications.sql` ✅
-- ✅ Tower app structure exists:
-  - `document-ingestion/` (placeholder)
-  - `chunk-storage/` (placeholder)
-  - `verification-logs/` (placeholder)
+- ✅ **Tower apps fully implemented** - **FROM COLLEAGUE'S COMMIT**
+  - `document-ingestion/` ✅ - **FULLY WORKING**
+    - Downloads PDFs from URL or local path
+    - Generates SHA256 hash
+    - Stores document metadata in Tower Iceberg table
+    - Has proper Towerfile and handler
+  - `chunk-storage/` ✅ - **FULLY WORKING**
+    - Loads chunks from path or URL
+    - Stores chunks with embeddings in Tower
+    - Has proper Towerfile and handler
+  - `rag-chunk-query/` ✅ - **FULLY WORKING** (NEW!)
+    - Queries chunks from Tower using RAG
+    - Returns top-k chunks with relevance scores
+    - Uses token-based matching (keyword search)
+  - `verification-logs/` (placeholder - not yet needed)
+
+### Completed (Recent):
+- ✅ **Tower service integration** - **JUST COMPLETED**
+  - `tower_service.py` updated with methods to call Tower apps
+  - Document upload endpoint integrated with document-ingestion
+  - RAG service integrated with rag-chunk-query
+  - Verification endpoint uses Tower RAG
+  - Companies endpoint queries Tower documents
 
 ### Missing:
-- ❌ **Task 1.1**: Schema setup app not created
-- ❌ Document ingestion app implementation (just returns `{"status": "not_implemented"}`)
-- ❌ Chunk storage app implementation
-- ❌ Hash collision detection
-- ❌ Tests for Tower apps
-
-**Next Task**: Task 1.1 - Create Iceberg Schema for Companies Table (with proper Tower app)
+- ❌ **Task 1.1**: Schema setup app not created (but tables work via apps)
+- ❌ Hash collision detection (handled by Tower upsert)
+- ❌ Tests for Tower apps (integration tests needed)
 
 ---
 
@@ -94,22 +120,37 @@ This document compares what's currently implemented against the PRD requirements
 - ✅ Verification report generation
 - ✅ File upload endpoint for .txt files (`/verify-from-files`)
 
+### Completed (Recent):
+- ✅ **RAG service fully implemented** - **JUST COMPLETED**
+  - Integrated with Tower rag-chunk-query app
+  - Can retrieve chunks from Tower using document_id
+  - Falls back to simple keyword matching if Tower unavailable
+  - Returns chunks with relevance scores
+- ✅ **Chunk retriever agent updated** - **JUST COMPLETED**
+  - Now uses Tower RAG service
+  - Can retrieve chunks by document_id
+- ✅ **Verification endpoint updated** - **JUST COMPLETED**
+  - `/api/verify` now uses Tower RAG
+  - Retrieves chunks from Tower for verification
+  - Returns verification results with citations
+- ✅ **Opik integration** - **JUST COMPLETED**
+  - Opik service fully implemented
+  - Instrumented AI Agent endpoints with tracking
+  - Tracks claim extraction and verification
+
 ### Partially Complete:
-- ⚠️ Chunk retriever exists (`backend/agents/chunk_retriever.py`) - needs verification
-- ⚠️ Verification agent exists (`backend/agents/verification_agent.py`) - needs verification
-- ⚠️ RAG service exists (`backend/services/rag_service.py`) - but returns `NotImplementedError`
+- ⚠️ Verification agent exists (`backend/agents/verification_agent.py`) - basic implementation
 
 ### Missing:
-- ❌ **Opik integration** (Phase 4 requirement) - critical missing piece
-- ❌ Hybrid search (semantic + keyword) implementation
-- ❌ Chunk retrieval with confidence scores
-- ❌ Proper citations (PDF hash, page, section)
-- ❌ FastAPI endpoint `/api/verify` (exists but may not be fully functional)
+- ❌ Hybrid search (semantic + keyword) - currently only keyword-based
+- ❌ Semantic embeddings for better retrieval (chunks stored but not used for semantic search)
+- ❌ Proper citations with PDF hash, page, section (chunks have page_number but not fully integrated)
 
 **Next Priority**: 
-1. Implement Opik service (Task 0.7 / Phase 4 requirement)
-2. Complete RAG service implementation
-3. Integrate chunk retriever with Tower storage
+1. ✅ ~~Implement Opik service (Task 0.7 / Phase 4 requirement)~~ **COMPLETED**
+2. ✅ ~~Complete RAG service implementation~~ **COMPLETED**
+3. ✅ ~~Integrate chunk retriever with Tower storage~~ **COMPLETED**
+4. Add semantic search using embeddings stored in chunks
 
 ---
 
@@ -126,11 +167,18 @@ This document compares what's currently implemented against the PRD requirements
 - ✅ YouTube transcript endpoint (`/api/youtube/transcript`) ✅
 - ✅ API documentation (FastAPI auto-generates `/docs`)
 
+### Completed (Recent):
+- ✅ **Company listing endpoint** (`/api/companies`) - **JUST COMPLETED**
+- ✅ **Version diff endpoint** (`/api/version-diff`) - **JUST COMPLETED**
+- ✅ **Rate limiting implementation** - **JUST COMPLETED**
+  - Integrated slowapi middleware
+  - Configurable from config.json
+  - Applied to YouTube and AI Agent endpoints
+- ✅ **Opik instrumentation** on AI Agent endpoints - **JUST COMPLETED**
+
 ### Missing:
-- ❌ Company listing endpoint
-- ❌ Version diff endpoint
-- ❌ Rate limiting implementation
-- ❌ Opik instrumentation on all endpoints
+- ❌ Rate limiting on all endpoints (currently only YouTube and AI Agent)
+- ❌ Opik instrumentation on remaining endpoints (documents, verification, companies)
 
 ---
 
@@ -169,26 +217,32 @@ This document compares what's currently implemented against the PRD requirements
 
 ## 🎯 Immediate Next Steps (Based on tasks.md)
 
-### Priority 1: Complete Opik Integration (Task 0.7)
+### Priority 1: ✅ Complete Opik Integration (Task 0.7) - **COMPLETED**
 **Why**: Required for Phase 4, critical for observability
 **Files**: `backend/services/opik_service.py`
-**Status**: Currently just a placeholder
+**Status**: ✅ **FULLY IMPLEMENTED**
 
-### Priority 2: Complete Tower Apps (Task 1.1+)
+### Priority 2: ✅ Complete Tower Apps (Task 1.1+) - **COMPLETED**
 **Why**: Foundation for document storage
 **Files**: 
-- `backend/tower/apps/document-ingestion/main.py`
-- `backend/tower/apps/chunk-storage/main.py`
-- `backend/tower/apps/verification-logs/main.py`
-**Status**: All are placeholders
+- `backend/tower/apps/document-ingestion/main.py` ✅
+- `backend/tower/apps/chunk-storage/main.py` ✅
+- `backend/tower/apps/rag-chunk-query/main.py` ✅ (NEW!)
+**Status**: ✅ **ALL IMPLEMENTED** (from colleague's commit)
 
-### Priority 3: Complete RAG Service
+### Priority 3: ✅ Complete RAG Service - **COMPLETED**
 **Why**: Core functionality for verification
 **Files**: `backend/services/rag_service.py`
-**Status**: Returns `NotImplementedError`
+**Status**: ✅ **FULLY IMPLEMENTED** - Integrated with Tower
 
-### Priority 4: Integrate Everything
+### Priority 4: ✅ Integrate Everything - **COMPLETED**
 **Why**: Connect AI agent → RAG → Tower storage → Opik tracking
+**Status**: ✅ **INTEGRATED** - All components connected
+
+### Priority 5: Add Semantic Search
+**Why**: Improve RAG retrieval quality using embeddings
+**Files**: Need to use embeddings stored in chunks for semantic similarity
+**Status**: Not started
 
 ---
 
@@ -196,24 +250,26 @@ This document compares what's currently implemented against the PRD requirements
 
 | Phase | Status | Completion |
 |-------|--------|------------|
-| Phase 0: Setup | ⚠️ Partial | ~70% |
-| Phase 1: Document Ingestion | ⚠️ Partial | ~30% |
+| Phase 0: Setup | ⚠️ Partial | ~90% |
+| Phase 1: Document Ingestion | ✅ Complete | ~95% |
 | Phase 2: PDF Processing | ❓ Unknown | ? |
 | Phase 3: YouTube Transcript | ✅ Complete | 100% |
-| Phase 4: RAG & Verification | ⚠️ Partial | ~50% |
-| Phase 5: Backend API | ⚠️ Partial | ~60% |
+| Phase 4: RAG & Verification | ⚠️ Partial | ~75% |
+| Phase 5: Backend API | ⚠️ Partial | ~85% |
 | Phase 6: Frontend | ❓ Unknown | ? |
-| Phase 7: Testing | ⚠️ Partial | ~40% |
+| Phase 7: Testing | ⚠️ Partial | ~45% |
 | Phase 8: Deployment | ❌ Not Started | 0% |
 
 ---
 
 ## 🔥 Critical Gaps
 
-1. **Opik Integration** - Required for Phase 4, currently not implemented
-2. **Tower Apps** - All three apps are placeholders
-3. **RAG Service** - Core verification logic not implemented
-4. **Integration** - Components exist but not connected
+1. ✅ ~~**Opik Integration**~~ - **COMPLETED** ✅
+2. ✅ ~~**Tower Apps**~~ - **COMPLETED** ✅ (from colleague's commit)
+3. ✅ ~~**RAG Service**~~ - **COMPLETED** ✅
+4. ✅ ~~**Integration**~~ - **COMPLETED** ✅ (Tower apps integrated with services)
+5. **Semantic Search** - Currently only keyword-based, embeddings stored but not used
+6. **Verification-logs Tower app** - Still placeholder (lower priority)
 
 ---
 
@@ -224,6 +280,17 @@ This document compares what's currently implemented against the PRD requirements
 3. ✅ File upload endpoint for .txt files
 4. ✅ Config-based model selection
 5. ✅ Comprehensive test suite for AI Agent
+6. ✅ **Opik service fully implemented** (Task 0.7)
+7. ✅ **Company listing endpoint** (`/api/companies`)
+8. ✅ **Version diff endpoint** (`/api/version-diff`)
+9. ✅ **Rate limiting middleware** with config.json integration
+10. ✅ **Opik instrumentation** on AI Agent endpoints
+11. ✅ **Tower apps integration** - **FROM COLLEAGUE + JUST COMPLETED**
+    - Document ingestion integrated with `/api/documents`
+    - RAG service integrated with rag-chunk-query app
+    - Verification endpoint uses Tower RAG
+    - Chunk retriever agent uses Tower
+    - Tower service wrapper for calling apps
 
 ---
 

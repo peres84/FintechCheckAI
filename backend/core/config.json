@@ -21,6 +21,11 @@
         ]
     },
 
+    "tower": {
+        "catalog": "database_catalog",
+        "namespace": "default"
+    },
+
     "logging":{
         "logging_level":"debug",
         "dir_name":"logs",

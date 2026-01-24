@@ -8,13 +8,16 @@ from backend.core.config import config
 # Import services and models
 from backend.services.ai_agent_service import ai_agent_service
 from backend.services.youtube_service import fetch_transcript
+from backend.services.opik_service import get_opik_service
 from backend.models.schemas import (
     ClaimExtractionRequest, ClaimExtractionResponse,
     VerificationAnalysisRequest, VerificationAnalysisResponse,
     ComparisonRequest, ComparisonResponse
 )
+from backend.api.middleware.rate_limit import rate_limit_by_tag
 
 router = APIRouter()
+opik_service = get_opik_service()
 
 
 @router.post(
@@ -23,6 +26,7 @@ router = APIRouter()
     summary="Extract financial claims from transcript",
     description="Extract specific financial claims and assertions from a text transcript using AI analysis"
 )
+@rate_limit_by_tag("ai-agent")
 async def extract_claims(request: ClaimExtractionRequest) -> ClaimExtractionResponse:
     """
     Extract financial claims from a transcript.
@@ -52,6 +56,13 @@ async def extract_claims(request: ClaimExtractionRequest) -> ClaimExtractionResp
     try:
         # Extract claims using AI service
         claims = await ai_agent_service.extract_claims_from_transcript(request.transcript)
+        
+        # Track with Opik
+        opik_service.track_claim_extraction(
+            transcript=request.transcript,
+            claims=claims,
+            metadata={"endpoint": "/extract-claims"}
+        )
         
         # Categorize claims
         categories = {}
@@ -190,6 +201,13 @@ async def verify_youtube_video(request: VerificationAnalysisRequest) -> Verifica
         log_handler.info("Step 2: Extracting claims from transcript")
         claims = await ai_agent_service.extract_claims_from_transcript(transcript)
         
+        # Track claim extraction with Opik
+        opik_service.track_claim_extraction(
+            transcript=transcript,
+            claims=claims,
+            metadata={"video_id": video_id, "endpoint": "/verify-youtube-video"}
+        )
+        
         # Step 3: Compare with shareholder letter (if provided)
         verification_results = {}
         if request.shareholder_letter and request.shareholder_letter.strip():
@@ -198,6 +216,22 @@ async def verify_youtube_video(request: VerificationAnalysisRequest) -> Verifica
                 claims, 
                 request.shareholder_letter
             )
+            
+            # Track verification with Opik
+            for claim in claims:
+                verdict = "VERIFIED" if any(
+                    vc.get("status") == "VERIFIED" 
+                    for vc in verification_results.get("verified_claims", [])
+                    if vc.get("claim") == claim.get("claim")
+                ) else "NOT_VERIFIED"
+                
+                opik_service.track_verification(
+                    claim=claim.get("claim", ""),
+                    chunks=[],
+                    verdict=verdict,
+                    reasoning=f"Compared against shareholder letter",
+                    metadata={"video_id": video_id}
+                )
         else:
             log_handler.info("Step 3: Skipped - no shareholder letter provided")
             verification_results = {

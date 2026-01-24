@@ -160,3 +160,103 @@ class ComparisonResponse(BaseModel):
                 "key_discrepancies": []
             }
         }
+
+
+# Company listing models
+class Company(BaseModel):
+    company_id: str
+    name: str
+    ticker: Optional[str] = None
+    industry: Optional[str] = None
+    created_at: Optional[str] = None
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "company_id": "duolingo",
+                "name": "Duolingo",
+                "ticker": "DUOL",
+                "industry": "Education Technology",
+                "created_at": "2024-01-01T00:00:00Z"
+            }
+        }
+
+
+class CompanyListResponse(BaseModel):
+    companies: List[Company]
+    total: int
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "companies": [
+                    {
+                        "company_id": "duolingo",
+                        "name": "Duolingo",
+                        "ticker": "DUOL"
+                    }
+                ],
+                "total": 1
+            }
+        }
+
+
+# Version diff models
+class VersionDiffRequest(BaseModel):
+    company_id: str
+    document_id_1: str
+    document_id_2: str
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "company_id": "duolingo",
+                "document_id_1": "doc_2024_q3",
+                "document_id_2": "doc_2024_q2"
+            }
+        }
+
+
+class DocumentVersion(BaseModel):
+    document_id: str
+    version: str
+    sha256: str
+    created_at: str
+    page_count: Optional[int] = None
+
+
+class ChangedSection(BaseModel):
+    section: str
+    page: int
+    old_text: str
+    new_text: str
+    change_type: str  # "added", "removed", "modified"
+
+
+class VersionDiffResponse(BaseModel):
+    company_id: str
+    document_1: DocumentVersion
+    document_2: DocumentVersion
+    changed_sections: List[ChangedSection]
+    total_changes: int
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "company_id": "duolingo",
+                "document_1": {
+                    "document_id": "doc_2024_q3",
+                    "version": "Q3-2024",
+                    "sha256": "abc123...",
+                    "created_at": "2024-09-30T00:00:00Z"
+                },
+                "document_2": {
+                    "document_id": "doc_2024_q2",
+                    "version": "Q2-2024",
+                    "sha256": "def456...",
+                    "created_at": "2024-06-30T00:00:00Z"
+                },
+                "changed_sections": [],
+                "total_changes": 0
+            }
+        }

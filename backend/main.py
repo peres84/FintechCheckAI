@@ -18,12 +18,15 @@ load_dotenv()
 # Import with absolute paths
 from backend.core.logging import log_handler
 from backend.core.config import config
-from backend.api.routes import documents, verification, youtube, ai_agent
+from backend.api.routes import documents, verification, youtube, ai_agent, companies, version_diff
+from backend.api.middleware.rate_limit import setup_rate_limiting
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     port = os.getenv("PORT", config["network"]["server_port"])
     log_handler.info(f"FinTech Check AI backend server starting on port {port}")
+    # Setup rate limiting
+    setup_rate_limiting(app)
     yield
     log_handler.info("FinTech Check AI backend server shutting down")
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 
 # Import logging and config
@@ -8,6 +8,7 @@ from backend.core.config import config
 # Import service and models
 from backend.services.youtube_service import fetch_transcript
 from backend.models.schemas import YouTubeTranscriptRequest, YouTubeTranscriptResponse
+from backend.api.middleware.rate_limit import rate_limit_by_tag
 
 router = APIRouter()
 
@@ -18,6 +19,7 @@ router = APIRouter()
     summary="Extract transcript from YouTube video",
     description="Extract transcript from a YouTube video using either YouTube captions or audio transcription"
 )
+@rate_limit_by_tag("youtube")
 async def get_transcript(request: YouTubeTranscriptRequest) -> YouTubeTranscriptResponse:
     """
     Extract transcript from a YouTube video.
