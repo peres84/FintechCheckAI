@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, UploadFile, File
 from fastapi.responses import JSONResponse
 
 # Import logging and config
@@ -239,6 +239,151 @@ async def verify_youtube_video(request: VerificationAnalysisRequest) -> Verifica
         )
 
 
+@router.post(
+    "/verify-from-files",
+    response_model=VerificationAnalysisResponse,
+    summary="Complete verification analysis from uploaded .txt files",
+    description="Upload transcript and shareholder letter as .txt files, then perform complete verification analysis"
+)
+async def verify_from_files(
+    transcript_file: UploadFile = File(..., description="Transcript .txt file"),
+    shareholder_letter_file: UploadFile = File(None, description="Shareholder letter .txt file (optional)")
+) -> VerificationAnalysisResponse:
+    """
+    Complete verification analysis from uploaded .txt files.
+    
+    This endpoint accepts two .txt file uploads:
+    1. Transcript file (required) - contains the YouTube transcript or other transcript text
+    2. Shareholder letter file (optional) - contains the official shareholder letter text
+    
+    The endpoint performs the full workflow:
+    1. Read transcript from uploaded file
+    2. Extract financial claims from transcript
+    3. Compare claims with shareholder letter (if provided)
+    4. Generate comprehensive verification report
+    
+    Args:
+        transcript_file: Uploaded .txt file containing the transcript
+        shareholder_letter_file: Optional uploaded .txt file containing the shareholder letter
+        
+    Returns:
+        VerificationAnalysisResponse: Complete analysis with verification results
+        
+    Raises:
+        HTTPException: If files are invalid or analysis fails
+    """
+    log_handler.info("Received file upload verification request")
+    
+    # Validate transcript file
+    if not transcript_file.filename:
+        error_msg = "Transcript file is required"
+        log_handler.error(error_msg)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
+        )
+    
+    if not transcript_file.filename.endswith('.txt'):
+        error_msg = "Transcript file must be a .txt file"
+        log_handler.error(error_msg)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
+        )
+    
+    # Validate shareholder letter file if provided
+    shareholder_letter_text = None
+    if shareholder_letter_file and shareholder_letter_file.filename:
+        if not shareholder_letter_file.filename.endswith('.txt'):
+            error_msg = "Shareholder letter file must be a .txt file"
+            log_handler.error(error_msg)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg
+            )
+    
+    try:
+        # Step 1: Read transcript file
+        log_handler.info(f"Reading transcript file: {transcript_file.filename}")
+        transcript_content = await transcript_file.read()
+        transcript = transcript_content.decode('utf-8')
+        
+        if not transcript or not transcript.strip():
+            error_msg = "Transcript file is empty"
+            log_handler.error(error_msg)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg
+            )
+        
+        # Step 2: Read shareholder letter file if provided
+        if shareholder_letter_file and shareholder_letter_file.filename:
+            log_handler.info(f"Reading shareholder letter file: {shareholder_letter_file.filename}")
+            shareholder_letter_content = await shareholder_letter_file.read()
+            shareholder_letter_text = shareholder_letter_content.decode('utf-8')
+        
+        # Step 3: Extract claims from transcript
+        log_handler.info("Step 1: Extracting claims from transcript")
+        claims = await ai_agent_service.extract_claims_from_transcript(transcript)
+        
+        # Step 4: Compare with shareholder letter (if provided)
+        verification_results = {}
+        if shareholder_letter_text and shareholder_letter_text.strip():
+            log_handler.info("Step 2: Comparing claims with shareholder letter")
+            verification_results = await ai_agent_service.compare_with_shareholder_letter(
+                claims, 
+                shareholder_letter_text
+            )
+        else:
+            log_handler.info("Step 2: Skipped - no shareholder letter provided")
+            verification_results = {
+                "verified_claims": [],
+                "summary": {"total_claims": len(claims), "note": "No shareholder letter provided for comparison"},
+                "key_discrepancies": []
+            }
+        
+        # Step 5: Generate comprehensive report
+        log_handler.info("Step 3: Generating verification report")
+        # Use a placeholder URL since we're working with files
+        video_url = f"file://{transcript_file.filename}"
+        report = await ai_agent_service.generate_verification_report(
+            video_url, transcript, claims, verification_results
+        )
+        
+        # Create response
+        response = VerificationAnalysisResponse(
+            video_id=transcript_file.filename,
+            video_url=video_url,
+            transcript=transcript,
+            extracted_claims=claims,
+            verification_results=verification_results,
+            executive_summary=report.get("executive_summary", ""),
+            recommendations=report.get("recommendations", []),
+            metadata=report.get("metadata", {})
+        )
+        
+        log_handler.info(f"Successfully completed verification analysis from files")
+        return response
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except UnicodeDecodeError as e:
+        error_msg = f"Error decoding file content (must be UTF-8): {str(e)}"
+        log_handler.error(error_msg)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
+        )
+    except Exception as e:
+        error_msg = f"Error in file-based verification analysis: {str(e)}"
+        log_handler.error(error_msg)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_msg
+        )
+
+
 @router.get("/health")
 def ai_agent_health() -> dict:
     """Health check endpoint for AI Agent service."""
@@ -249,7 +394,8 @@ def ai_agent_health() -> dict:
         "endpoints": [
             "/extract-claims",
             "/compare-claims", 
-            "/verify-youtube-video"
+            "/verify-youtube-video",
+            "/verify-from-files"
         ],
         "ai_model": "gpt-4o-mini"
     }

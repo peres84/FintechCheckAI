@@ -1,17 +1,30 @@
 import os
+import sys
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-
-# Import logging
+# Import logging first (before using it)
 from backend.core.logging import log_handler
 
-# Initialize OpenAI client
-client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Load environment variables - try project root first, then backend directory
+# Get the project root directory (parent of backend/)
+project_root = Path(__file__).parent.parent.parent
+backend_dir = Path(__file__).parent.parent
+
+# Try loading from project root first, then backend directory
+env_paths = [project_root / '.env', backend_dir / '.env']
+for env_path in env_paths:
+    if env_path.exists():
+        load_dotenv(env_path)
+        log_handler.debug(f"Loaded .env from: {env_path}")
+        break
+else:
+    # If no .env file found, still call load_dotenv() to load from environment
+    load_dotenv()
+    log_handler.debug("No .env file found, loading from environment variables only")
 
 class AIAgentService:
     """
@@ -26,6 +39,30 @@ class AIAgentService:
     def __init__(self):
         self.model = "gpt-4o-mini"  # Using the latest GPT-4 model
         self.max_tokens = 4000
+        self._client = None
+    
+    def _get_client(self) -> AsyncOpenAI:
+        """
+        Get or create OpenAI client lazily.
+        
+        Returns:
+            AsyncOpenAI: The OpenAI client instance
+            
+        Raises:
+            RuntimeError: If OPENAI_API_KEY is not set
+        """
+        if self._client is None:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                error_msg = (
+                    "OPENAI_API_KEY environment variable is not set. "
+                    "Please set it in your .env file or environment variables."
+                )
+                log_handler.error(error_msg)
+                raise RuntimeError(error_msg)
+            self._client = AsyncOpenAI(api_key=api_key)
+            log_handler.debug("OpenAI client initialized")
+        return self._client
         
     async def extract_claims_from_transcript(self, transcript: str) -> List[Dict[str, Any]]:
         """
@@ -79,6 +116,7 @@ class AIAgentService:
             Only extract claims that are factual statements, not opinions or general commentary.
             """
             
+            client = self._get_client()
             response = await client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -186,6 +224,7 @@ class AIAgentService:
             }}
             """
             
+            client = self._get_client()
             response = await client.chat.completions.create(
                 model=self.model,
                 messages=[
