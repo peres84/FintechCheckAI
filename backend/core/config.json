@@ -1,0 +1,9 @@
+{
+    "project_name":"FinTech Check AI",
+
+    "logging":{
+        "logging_level":"debug",
+        "dir_name":"logs",
+        "log_file_name":"fintech_check_ai"
+    }
+}
