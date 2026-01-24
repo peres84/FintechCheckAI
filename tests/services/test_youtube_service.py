@@ -1,3 +1,4 @@
+import yt_dlp
 from youtube_transcript_api import (
     YouTubeTranscriptApi,
     TranscriptsDisabled,
@@ -155,6 +156,56 @@ def extract_full_transcript(video_id: str) -> str:
     except Exception as e:
         raise RuntimeError(f"Unexpected error getting youtube transcript {video_id}: {e}")
 
+async def download_full_audio_ytdlp(vid_url: str, output_dir: str) -> str:
+    """
+    Download the full audio track from a YouTube video using yt-dlp.
+    More reliable than pytube for current YouTube API.
+
+    Raises:
+        TypeError: If vid_url is not a string.
+        RuntimeError: For any error during download.
+    """
+    if not isinstance(vid_url, str):
+        raise TypeError(f"Expected a string for video URL, got {type(vid_url).__name__} instead.")
+
+    # Extract id for naming the file
+    filename = get_y_video_id(vid_url)
+    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Configure yt-dlp options
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': os.path.join(output_dir, f'video_{filename}_{current_time}.%(ext)s'),
+        'extractaudio': True,
+        'audioformat': 'mp4',
+        'quiet': False,  # Set to True to reduce output
+    }
+
+    try:
+        def download_sync():
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                # Get info first
+                info = ydl.extract_info(vid_url, download=False)
+                print(f"Video title: {info.get('title', 'Unknown')}")
+                print(f"Video duration: {info.get('duration', 'Unknown')} seconds")
+                
+                # Download
+                ydl.download([vid_url])
+                
+                # Find the downloaded file
+                expected_pattern = f'video_{filename}_{current_time}.*'
+                for file in os.listdir(output_dir):
+                    if file.startswith(f'video_{filename}_{current_time}'):
+                        return os.path.join(output_dir, file)
+                
+                raise RuntimeError("Downloaded file not found")
+        
+        audio_file = await asyncio.to_thread(download_sync)
+        return audio_file
+        
+    except Exception as e:
+        raise RuntimeError(f"Error downloading audio with yt-dlp: {e}")
+
 async def download_full_audio(vid_url: str) -> str:
     """
     Download the full audio track from a YouTube video that must be processed
@@ -246,11 +297,42 @@ async def transcribe_with_runpod(audio_url: str) -> dict:
         raise TypeError("audio_url must be a string.")
 
     try:
-        job = runpod.run_sync(
-            RUNPOD_ENDPOINT_ID,
-            input={"audio_file": audio_url},
-            api_key=RUNPOD_API_KEY
-        )
+        # Try the newer RunPod API method
+        import runpod
+        
+        # Initialize the client
+        runpod.api_key = RUNPOD_API_KEY
+        
+        print(f"Calling RunPod with endpoint: {RUNPOD_ENDPOINT_ID}")
+        print(f"Audio URL: {audio_url}")
+        
+        # Try different API methods based on the version
+        job = None
+        try:
+            # Method 1: run_sync (older versions)
+            print("Trying runpod.run_sync...")
+            job = runpod.run_sync(
+                RUNPOD_ENDPOINT_ID,
+                input={"audio_file": audio_url},
+                api_key=RUNPOD_API_KEY
+            )
+        except AttributeError:
+            try:
+                # Method 2: run (newer versions)
+                print("Trying runpod.run...")
+                job = runpod.run(
+                    RUNPOD_ENDPOINT_ID,
+                    input={"audio_file": audio_url}
+                )
+            except AttributeError:
+                # Method 3: Direct endpoint call
+                print("Trying endpoint.run_sync...")
+                endpoint = runpod.Endpoint(RUNPOD_ENDPOINT_ID)
+                job = endpoint.run_sync({"audio_file": audio_url})
+        
+        print(f"RunPod job result: {job}")
+        print(f"RunPod job type: {type(job)}")
+        
         return job
 
     except (ConnectionError, Timeout, HTTPError) as e:
@@ -271,33 +353,32 @@ async def main_async(youtube_url: str):
     temp_dir = tempfile.mkdtemp(prefix=f"yt_etl_{video_id}_")
     try:
         print(f"Temporary working directory created at {temp_dir}")
-        print("Skipping transcript check - testing audio transcription flow...")
         
-        # DISABLED FOR TESTING: Skip transcript check to test full audio flow
-        # try:
-        #     transcript = extract_full_transcript(video_id)
-        #     if transcript:
-        #         print("Transcript successfully extracted from YouTube captions!")
-        #         with open(f"{video_id}_transcript.txt", "w", encoding="utf-8") as f:
-        #             f.write(transcript)
-        #         print(f"Full transcript saved as '{video_id}_transcript.txt'.")
-        #         return transcript
-        # except (TranscriptsDisabled, NoTranscriptFound, VideoUnavailable, RuntimeError) as e:
-        #     print(f"No transcript available via YouTube captions: {e}")
-        #     transcript = None
+        # ========== Try YouTube transcript first ==========
+        print("Checking for YouTube captions...")
+        try:
+            transcript = extract_full_transcript(video_id)
+            if transcript:
+                print("Transcript successfully extracted from YouTube captions!")
+                with open(f"{video_id}_transcript.txt", "w", encoding="utf-8") as f:
+                    f.write(transcript)
+                print(f"Full transcript saved as '{video_id}_transcript.txt'.")
+                return transcript
+        except (TranscriptsDisabled, NoTranscriptFound, VideoUnavailable, RuntimeError) as e:
+            print(f"No transcript available via YouTube captions: {e}")
+            print("Proceeding with audio transcription flow...")
 
         # ========== Download audio ==========
         print("Downloading full audio for transcription...")
-        filename = get_y_video_id(youtube_url)
-        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-        audio_filename = f"video_{filename}_{current_time}.mp4"
-        audio_mp4 = await asyncio.to_thread(
-            lambda: YouTube(youtube_url)
-                .streams.filter(only_audio=True)
-                .first()
-                .download(output_path=temp_dir, filename=audio_filename)
-        )
-        print(f"Audio downloaded: {audio_mp4}")
+        try:
+            # Use yt-dlp instead of pytube for better reliability
+            audio_mp4 = await download_full_audio_ytdlp(youtube_url, temp_dir)
+            print(f"Audio downloaded: {audio_mp4}")
+            
+        except Exception as e:
+            print(f"Error downloading audio: {e}")
+            print(f"Error type: {type(e).__name__}")
+            raise
 
         # ========== Convert to WAV & upload ==========
         print("Converting audio to WAV...")
@@ -319,10 +400,29 @@ async def main_async(youtube_url: str):
             delete_from_imagekit(imagekit_file_id)
 
         # ========== Save results ==========
+        print(f"RunPod result type: {type(runpod_result)}")
+        print(f"RunPod result: {runpod_result}")
+        
+        if runpod_result is None:
+            print("Warning: RunPod returned None, creating empty result")
+            runpod_result = {"transcript": "", "status": "failed", "error": "RunPod returned None"}
+        
         with open(f"{video_id}_transcript.json", "w", encoding="utf-8") as f:
             json.dump(runpod_result, f, indent=2)
+        
+        # Handle transcript extraction based on result structure
+        transcript_text = ""
+        if isinstance(runpod_result, dict):
+            # Try different possible keys for the transcript
+            transcript_text = (runpod_result.get("transcript") or 
+                             runpod_result.get("text") or 
+                             runpod_result.get("output") or 
+                             str(runpod_result))
+        else:
+            transcript_text = str(runpod_result) if runpod_result else "No transcript available"
+        
         with open(f"{video_id}_transcript.txt", "w", encoding="utf-8") as f:
-            f.write(runpod_result.get("transcript", ""))
+            f.write(transcript_text)
 
         print(f"Full transcript saved as '{video_id}_transcript.txt' and JSON as '{video_id}_transcript.json'.")
         return runpod_result
@@ -349,23 +449,37 @@ if __name__ == "__main__":
     print(f"IMAGEKIT_PRIVATE_KEY loaded: {'Yes' if IMAGEKIT_PRIVATE_KEY else 'No'}")
     print("========================\n")
     
-    # Test with any video since we're skipping transcript check
-    TEST_YOUTUBE_URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw"  # "Me at the zoo" - first YouTube video
+    # Test URLs - try these in order if one fails
+    TEST_URLS = [
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",  # Rick Astley - Never Gonna Give You Up
+        # "https://www.youtube.com/watch?v=9bZkp7q19f0",  # PSY - GANGNAM STYLE
+        # "https://www.youtube.com/watch?v=kJQP7kiw5Fk",  # Luis Fonsi - Despacito
+    ]
 
     print("Starting YouTube ETL test...")
-    print(f"Testing URL: {TEST_YOUTUBE_URL}")
-    print(f"Video ID: {get_y_video_id(TEST_YOUTUBE_URL)}")
-    try:
-        result = asyncio.run(main_async(TEST_YOUTUBE_URL))
-        print("\nTest finished successfully!")
-        if isinstance(result, dict):
-            print("RunPod transcription keys:", list(result.keys()))
-        else:
-            print("Transcript (YouTube captions):")
-            print(result[:300], "...")  # print first 300 chars
-    except Exception as e:
-        print("Test failed with exception:")
-        print(f"Error type: {type(e).__name__}")
-        print(f"Error message: {e}")
-        import traceback
-        traceback.print_exc()
+    
+    for i, test_url in enumerate(TEST_URLS):
+        print(f"\nTrying URL {i+1}/{len(TEST_URLS)}: {test_url}")
+        print(f"Video ID: {get_y_video_id(test_url)}")
+        
+        try:
+            result = asyncio.run(main_async(test_url))
+            print("\nTest finished successfully!")
+            if isinstance(result, dict):
+                print("RunPod transcription keys:", list(result.keys()))
+            else:
+                print("Transcript (YouTube captions):")
+                print(result[:300], "...")  # print first 300 chars
+            break  # Success, exit the loop
+            
+        except Exception as e:
+            print(f"Test failed with URL {i+1}:")
+            print(f"Error type: {type(e).__name__}")
+            print(f"Error message: {e}")
+            
+            if i == len(TEST_URLS) - 1:  # Last URL failed
+                print("\nAll test URLs failed. Full traceback for last attempt:")
+                import traceback
+                traceback.print_exc()
+            else:
+                print("Trying next URL...\n")
