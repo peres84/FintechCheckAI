@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 # Import logging first (before using it)
 from backend.core.logging import log_handler
+from backend.core.config import config
 
 # Load environment variables - try project root first, then backend directory
 # Get the project root directory (parent of backend/)
@@ -37,9 +38,11 @@ class AIAgentService:
     """
     
     def __init__(self):
-        self.model = "gpt-4o-mini"  # Using the latest GPT-4 model
+        # Get model from config, default to gpt-4o-mini if not found
+        self.model = config.get("openai", {}).get("default_model", "gpt-4o-mini")
         self.max_tokens = 4000
         self._client = None
+        log_handler.debug(f"AI Agent Service initialized with model: {self.model}")
     
     def _get_client(self) -> AsyncOpenAI:
         """

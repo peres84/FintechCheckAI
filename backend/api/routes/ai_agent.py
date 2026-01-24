@@ -388,6 +388,8 @@ async def verify_from_files(
 def ai_agent_health() -> dict:
     """Health check endpoint for AI Agent service."""
     log_handler.debug("AI Agent service health check accessed")
+    from backend.core.config import config
+    model = config.get("openai", {}).get("default_model", "gpt-4o-mini")
     return {
         "status": "ok", 
         "service": "AI Agent Service",
@@ -397,5 +399,5 @@ def ai_agent_health() -> dict:
             "/verify-youtube-video",
             "/verify-from-files"
         ],
-        "ai_model": "gpt-4o-mini"
+        "ai_model": model
     }
