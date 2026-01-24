@@ -26,6 +26,10 @@ root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 env_path = os.path.join(root_dir, '.env')
 load_dotenv(env_path)
 
+# Import logging
+sys.path.append(root_dir)
+from backend.core.logging import log_handler
+
 # ================= Configuration =================
 IMAGEKIT_UPLOAD_URL = "https://upload.imagekit.io/api/v1/files/upload"
 IMAGEKIT_DELETE_URL = "https://api.imagekit.io/v1/files"
@@ -49,14 +53,19 @@ required_vars = {
 
 missing_vars = [var for var, value in required_vars.items() if not value]
 if missing_vars:
-    print(f"Missing required environment variables: {', '.join(missing_vars)}")
-    print(f"Looking for .env file at: {env_path}")
+    error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"
+    log_handler.error(error_msg)
+    log_handler.info(f"Looking for .env file at: {env_path}")
     sys.exit(1)
 
 # ================= Helper Function for image kit =================
 def upload_wav_to_imagekit(local_wav_path: str) -> tuple[str, str]:
     if not os.path.exists(local_wav_path):
-        raise FileNotFoundError(local_wav_path)
+        error_msg = f"File not found: {local_wav_path}"
+        log_handler.error(error_msg)
+        raise FileNotFoundError(error_msg)
+
+    log_handler.info(f"Uploading WAV file to ImageKit: {local_wav_path}")
 
     auth = base64.b64encode(
         f"{IMAGEKIT_PRIVATE_KEY}:".encode()
@@ -78,12 +87,17 @@ def upload_wav_to_imagekit(local_wav_path: str) -> tuple[str, str]:
         )
 
     if response.status_code != 200:
-        raise RuntimeError(f"ImageKit upload failed: {response.text}")
+        error_msg = f"ImageKit upload failed: {response.text}"
+        log_handler.error(error_msg)
+        raise RuntimeError(error_msg)
 
     data = response.json()
+    log_handler.info(f"Successfully uploaded to ImageKit: {data['url']}")
     return data["url"], data["fileId"]
 
 def delete_from_imagekit(file_id: str):
+    log_handler.info(f"Deleting file from ImageKit: {file_id}")
+    
     auth = base64.b64encode(
         f"{IMAGEKIT_PRIVATE_KEY}:".encode()
     ).decode()
@@ -96,7 +110,11 @@ def delete_from_imagekit(file_id: str):
     )
 
     if response.status_code not in (200, 204):
-        raise RuntimeError(f"ImageKit delete failed: {response.text}")
+        error_msg = f"ImageKit delete failed: {response.text}"
+        log_handler.error(error_msg)
+        raise RuntimeError(error_msg)
+    
+    log_handler.info(f"Successfully deleted file from ImageKit: {file_id}")
 
 # ================= Helper Functions =================
 def get_y_video_id(vid_url: str) -> str:
@@ -109,20 +127,32 @@ def get_y_video_id(vid_url: str) -> str:
     """
     #Check input type of given parameter
     if not isinstance(vid_url, str):
-        raise TypeError(f"Expected a string for URL, got {type(vid_url).__name__} instead.")
+        error_msg = f"Expected a string for URL, got {type(vid_url).__name__} instead."
+        log_handler.error(error_msg)
+        raise TypeError(error_msg)
 
     #Extract video ID
     try:
         if "v=" in vid_url:
-            return vid_url.split("v=")[-1].split("&")[0]
+            video_id = vid_url.split("v=")[-1].split("&")[0]
         elif "youtu.be/" in vid_url:
-            return vid_url.split("/")[-1]
+            video_id = vid_url.split("/")[-1]
         else:
-            raise ValueError("URL does not appear to be a valid YouTube link.")
+            error_msg = "URL does not appear to be a valid YouTube link."
+            log_handler.error(f"Invalid YouTube URL: {vid_url}")
+            raise ValueError(error_msg)
+        
+        log_handler.debug(f"Extracted video ID: {video_id} from URL: {vid_url}")
+        return video_id
+        
     except ValueError as e:
-        raise ValueError(f"ERROR, invalid YouTube URL: {e}")
+        error_msg = f"ERROR, invalid YouTube URL: {e}"
+        log_handler.error(error_msg)
+        raise ValueError(error_msg)
     except Exception as e:
-        raise RuntimeError(f"Unexpected error getting youtube video ID: {e}")
+        error_msg = f"Unexpected error getting youtube video ID: {e}"
+        log_handler.error(error_msg)
+        raise RuntimeError(error_msg)
 
 def extract_full_transcript(video_id: str) -> str:
     """
@@ -136,7 +166,11 @@ def extract_full_transcript(video_id: str) -> str:
     """
     #Check input type of given parameter
     if not isinstance(video_id, str):
-        raise TypeError(f"Expected a string for video id, got {type(video_id).__name__} instead.")
+        error_msg = f"Expected a string for video id, got {type(video_id).__name__} instead."
+        log_handler.error(error_msg)
+        raise TypeError(error_msg)
+
+    log_handler.info(f"Attempting to extract YouTube transcript for video ID: {video_id}")
 
     #Try extracting the transcript
     try:
@@ -148,16 +182,27 @@ def extract_full_transcript(video_id: str) -> str:
 
         #Convert to plain text
         full_text = " ".join([segment["text"] for segment in fetched.to_raw_data()])
+        
+        log_handler.info(f"Successfully extracted transcript from YouTube captions for video {video_id}")
+        log_handler.debug(f"Transcript length: {len(full_text)} characters")
         return full_text
 
     except VideoUnavailable as e:
-        raise VideoUnavailable(f"Video {video_id} is unavailable: {e}")
+        error_msg = f"Video {video_id} is unavailable: {e}"
+        log_handler.warning(error_msg)
+        raise VideoUnavailable(error_msg)
     except TranscriptsDisabled as e:
-        raise TranscriptsDisabled(f"The provided video {video_id} has its transcript disabled: {e}")
+        error_msg = f"The provided video {video_id} has its transcript disabled: {e}"
+        log_handler.warning(error_msg)
+        raise TranscriptsDisabled(error_msg)
     except NoTranscriptFound as e:
-        raise NoTranscriptFound(f"No transcript found for the provided video ID {video_id}: {e}")
+        error_msg = f"No transcript found for the provided video ID {video_id}: {e}"
+        log_handler.warning(error_msg)
+        raise NoTranscriptFound(error_msg)
     except Exception as e:
-        raise RuntimeError(f"Unexpected error getting youtube transcript {video_id}: {e}")
+        error_msg = f"Unexpected error getting youtube transcript {video_id}: {e}"
+        log_handler.error(error_msg)
+        raise RuntimeError(error_msg)
 
 async def download_full_audio_ytdlp(vid_url: str, output_dir: str) -> str:
     """
@@ -169,11 +214,15 @@ async def download_full_audio_ytdlp(vid_url: str, output_dir: str) -> str:
         RuntimeError: For any error during download.
     """
     if not isinstance(vid_url, str):
-        raise TypeError(f"Expected a string for video URL, got {type(vid_url).__name__} instead.")
+        error_msg = f"Expected a string for video URL, got {type(vid_url).__name__} instead."
+        log_handler.error(error_msg)
+        raise TypeError(error_msg)
 
     # Extract id for naming the file
     filename = get_y_video_id(vid_url)
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    log_handler.info(f"Starting audio download for video {filename} using yt-dlp")
     
     # Configure yt-dlp options
     ydl_opts = {
@@ -189,8 +238,8 @@ async def download_full_audio_ytdlp(vid_url: str, output_dir: str) -> str:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 # Get info first
                 info = ydl.extract_info(vid_url, download=False)
-                print(f"Video title: {info.get('title', 'Unknown')}")
-                print(f"Video duration: {info.get('duration', 'Unknown')} seconds")
+                log_handler.info(f"Video title: {info.get('title', 'Unknown')}")
+                log_handler.info(f"Video duration: {info.get('duration', 'Unknown')} seconds")
                 
                 # Download
                 ydl.download([vid_url])
@@ -199,15 +248,21 @@ async def download_full_audio_ytdlp(vid_url: str, output_dir: str) -> str:
                 expected_pattern = f'video_{filename}_{current_time}.*'
                 for file in os.listdir(output_dir):
                     if file.startswith(f'video_{filename}_{current_time}'):
-                        return os.path.join(output_dir, file)
+                        file_path = os.path.join(output_dir, file)
+                        log_handler.info(f"Audio download completed: {file_path}")
+                        return file_path
                 
-                raise RuntimeError("Downloaded file not found")
+                error_msg = "Downloaded file not found"
+                log_handler.error(error_msg)
+                raise RuntimeError(error_msg)
         
         audio_file = await asyncio.to_thread(download_sync)
         return audio_file
         
     except Exception as e:
-        raise RuntimeError(f"Error downloading audio with yt-dlp: {e}")
+        error_msg = f"Error downloading audio with yt-dlp: {e}"
+        log_handler.error(error_msg)
+        raise RuntimeError(error_msg)
 
 async def download_full_audio(vid_url: str) -> str:
     """
@@ -223,12 +278,16 @@ async def download_full_audio(vid_url: str) -> str:
     """
     #Check input type of given parameter
     if not isinstance(vid_url, str):
-        raise TypeError(f"Expected a string for video URL, got {type(vid_url).__name__} instead.")
+        error_msg = f"Expected a string for video URL, got {type(vid_url).__name__} instead."
+        log_handler.error(error_msg)
+        raise TypeError(error_msg)
 
     #Extract id for naming the file
     filename = get_y_video_id(vid_url)
     #Get current date and time in YYYYMMDD_HHMMSS format
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    log_handler.info(f"Starting audio download for video {filename} using pytube")
 
     #Download the audio
     try:
@@ -237,14 +296,22 @@ async def download_full_audio(vid_url: str) -> str:
 
         full_audio_name = f"video_{filename}_{current_time}.mp4"
         audio_file = await asyncio.to_thread(stream.download, filename=full_audio_name)
+        
+        log_handler.info(f"Audio download completed: {audio_file}")
         return audio_file
     
     except exceptions.VideoUnavailable as e:
-        raise exceptions.VideoUnavailable(f"Video unavailable: {vid_url}: {e}")
+        error_msg = f"Video unavailable: {vid_url}: {e}"
+        log_handler.error(error_msg)
+        raise exceptions.VideoUnavailable(error_msg)
     except exceptions.AgeRestrictedError as e:
-        raise exceptions.AgeRestrictedError(f"Video is age restricted: {vid_url}: {e}")
+        error_msg = f"Video is age restricted: {vid_url}: {e}"
+        log_handler.error(error_msg)
+        raise exceptions.AgeRestrictedError(error_msg)
     except Exception as e:
-        raise RuntimeError(f"Unexpected error downloading audio from YouTube: {e}")
+        error_msg = f"Unexpected error downloading audio from YouTube: {e}"
+        log_handler.error(error_msg)
+        raise RuntimeError(error_msg)
 
 async def convert_to_wav(input_file_path: str) -> str:
     """
@@ -257,16 +324,22 @@ async def convert_to_wav(input_file_path: str) -> str:
     """
     #Type checks
     if not isinstance(input_file_path, str):
-        raise TypeError("input_file_path must be strings.")
+        error_msg = "input_file_path must be strings."
+        log_handler.error(error_msg)
+        raise TypeError(error_msg)
 
     #File existence check
     if not os.path.exists(input_file_path):
-        raise FileNotFoundError(f"Input file does not exist: {input_file_path}")
+        error_msg = f"Input file does not exist: {input_file_path}"
+        log_handler.error(error_msg)
+        raise FileNotFoundError(error_msg)
 
     #Determine output path with same base name but .wav extension
     base_name = os.path.splitext(os.path.basename(input_file_path))[0]
     dir_name = os.path.dirname(input_file_path)
     output_file_path = os.path.join(dir_name, f"{base_name}.wav")
+
+    log_handler.info(f"Converting audio to WAV: {input_file_path} -> {output_file_path}")
 
     #intra_Function to run FFmpeg synchronously
     def ffmpeg_convert():
@@ -279,14 +352,21 @@ async def convert_to_wav(input_file_path: str) -> str:
     #Convert wav using FFmpeg
     try:
         wav_file = await asyncio.to_thread(ffmpeg_convert)
+        log_handler.info(f"Audio conversion completed: {wav_file}")
         return wav_file
 
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Error converting to WAV: {e}")
+        error_msg = f"Error converting to WAV: {e}"
+        log_handler.error(error_msg)
+        raise RuntimeError(error_msg)
     except FileNotFoundError:
-        raise RuntimeError("FFmpeg not found. Please install FFmpeg and ensure it's in your PATH.")
+        error_msg = "FFmpeg not found. Please install FFmpeg and ensure it's in your PATH."
+        log_handler.error(error_msg)
+        raise RuntimeError(error_msg)
     except Exception as e:
-        raise RuntimeError(f"Unexpected error converting audio to wav format: {e}")
+        error_msg = f"Unexpected error converting audio to wav format: {e}"
+        log_handler.error(error_msg)
+        raise RuntimeError(error_msg)
 
 async def transcribe_with_runpod(audio_url: str) -> dict:
     """
@@ -297,7 +377,11 @@ async def transcribe_with_runpod(audio_url: str) -> dict:
         RuntimeError: If transcription fails.
     """
     if not isinstance(audio_url, str):
-        raise TypeError("audio_url must be a string.")
+        error_msg = "audio_url must be a string."
+        log_handler.error(error_msg)
+        raise TypeError(error_msg)
+
+    log_handler.info(f"Starting transcription with RunPod for audio URL: {audio_url}")
 
     try:
         import runpod
@@ -305,21 +389,21 @@ async def transcribe_with_runpod(audio_url: str) -> dict:
         # Initialize the client
         runpod.api_key = RUNPOD_API_KEY
         
-        print(f"Calling RunPod with endpoint: {RUNPOD_ENDPOINT_ID}")
-        print(f"Audio URL: {audio_url}")
-        print(f"RunPod version: {runpod.__version__ if hasattr(runpod, '__version__') else 'Unknown'}")
+        log_handler.info(f"Calling RunPod with endpoint: {RUNPOD_ENDPOINT_ID}")
+        log_handler.debug(f"Audio URL: {audio_url}")
+        log_handler.debug(f"RunPod version: {runpod.__version__ if hasattr(runpod, '__version__') else 'Unknown'}")
         
         # Create endpoint object
         endpoint = runpod.Endpoint(RUNPOD_ENDPOINT_ID)
-        print(f"Endpoint object created: {endpoint}")
+        log_handler.debug(f"Endpoint object created: {endpoint}")
         
         # Health check to wake up serverless endpoint
-        print("Checking endpoint health to warm up...")
+        log_handler.info("Checking endpoint health to warm up...")
         try:
             health = endpoint.health()
-            print(f"RunPod health: {health}")
+            log_handler.debug(f"RunPod health: {health}")
         except Exception as e:
-            print(f"Health check failed (this might be normal): {e}")
+            log_handler.warning(f"Health check failed (this might be normal): {e}")
         
         # Use the correct input format for Faster Whisper endpoint
         runpod_input = {
@@ -329,97 +413,101 @@ async def transcribe_with_runpod(audio_url: str) -> dict:
             }
         }
         
-        print(f"Calling run_sync with correct payload: {runpod_input}")
+        log_handler.debug(f"Calling run_sync with correct payload: {runpod_input}")
         
         # Synchronous call with timeout
         result = endpoint.run_sync(runpod_input, timeout=180)
         
-        print(f"RunPod run_sync result: {result}")
-        print(f"RunPod result type: {type(result)}")
+        log_handler.debug(f"RunPod run_sync result: {result}")
+        log_handler.debug(f"RunPod result type: {type(result)}")
         
         if result is None:
-            print("RunPod returned None - this should not happen with correct format")
+            error_msg = "RunPod returned None - this should not happen with correct format"
+            log_handler.error(error_msg)
             return {
                 "transcript": "",
                 "status": "failed", 
-                "error": "RunPod returned None despite correct input format"
+                "error": error_msg
             }
         
+        log_handler.info("Transcription completed successfully")
         return result
 
     except (ConnectionError, Timeout, HTTPError) as e:
-        raise RuntimeError(f"Network or API error when calling RunPod: {e}")
+        error_msg = f"Network or API error when calling RunPod: {e}"
+        log_handler.error(error_msg)
+        raise RuntimeError(error_msg)
     except Exception as e:
-        raise RuntimeError(f"Error transcribing with RunPod service: {e}")
+        error_msg = f"Error transcribing with RunPod service: {e}"
+        log_handler.error(error_msg)
+        raise RuntimeError(error_msg)
 
 # ================= Main Function =================
 async def main_async(youtube_url: str):
     """
     Main function to orchestrate the YouTube ETL process.
-
-    TODO: REMEMBER change all prints with proper logging
     """
 
     video_id = get_y_video_id(youtube_url)
 
     temp_dir = tempfile.mkdtemp(prefix=f"yt_etl_{video_id}_")
     try:
-        print(f"Temporary working directory created at {temp_dir}")
+        log_handler.info(f"Temporary working directory created at {temp_dir}")
         
         # ========== Try YouTube transcript first ==========
         if not SKIP_TRANSCRIPT_CHECK:
-            print("Checking for YouTube captions...")
+            log_handler.info("Checking for YouTube captions...")
             try:
                 transcript = extract_full_transcript(video_id)
                 if transcript:
-                    print("Transcript successfully extracted from YouTube captions!")
+                    log_handler.info("Transcript successfully extracted from YouTube captions!")
                     with open(f"{video_id}_transcript.txt", "w", encoding="utf-8") as f:
                         f.write(transcript)
-                    print(f"Full transcript saved as '{video_id}_transcript.txt'.")
+                    log_handler.info(f"Full transcript saved as '{video_id}_transcript.txt'.")
                     return transcript
             except (TranscriptsDisabled, NoTranscriptFound, VideoUnavailable, RuntimeError) as e:
-                print(f"No transcript available via YouTube captions: {e}")
-                print("Proceeding with audio transcription flow...")
+                log_handler.warning(f"No transcript available via YouTube captions: {e}")
+                log_handler.info("Proceeding with audio transcription flow...")
         else:
-            print("Skipping transcript check - testing audio transcription flow only...")
+            log_handler.info("Skipping transcript check - testing audio transcription flow only...")
 
         # ========== Download audio ==========
-        print("Downloading full audio for transcription...")
+        log_handler.info("Downloading full audio for transcription...")
         try:
             # Use yt-dlp instead of pytube for better reliability
             audio_mp4 = await download_full_audio_ytdlp(youtube_url, temp_dir)
-            print(f"Audio downloaded: {audio_mp4}")
+            log_handler.info(f"Audio downloaded: {audio_mp4}")
             
         except Exception as e:
-            print(f"Error downloading audio: {e}")
-            print(f"Error type: {type(e).__name__}")
+            log_handler.error(f"Error downloading audio: {e}")
+            log_handler.error(f"Error type: {type(e).__name__}")
             raise
 
         # ========== Convert to WAV & upload ==========
-        print("Converting audio to WAV...")
+        log_handler.info("Converting audio to WAV...")
         audio_wav = await convert_to_wav(audio_mp4)
-        print(f"Audio converted to WAV: {audio_wav}")
+        log_handler.info(f"Audio converted to WAV: {audio_wav}")
 
         # ========== Upload WAV to ImageKit ==========
-        print("Uploading WAV to ImageKit...")
+        log_handler.info("Uploading WAV to ImageKit...")
         audio_url, imagekit_file_id = upload_wav_to_imagekit(audio_wav)
-        print(f"Uploaded to ImageKit: {audio_url}")
+        log_handler.info(f"Uploaded to ImageKit: {audio_url}")
 
         # ========== RunPod transcription ==========
         try:
-            print("Sending audio URL to RunPod...")
+            log_handler.info("Sending audio URL to RunPod...")
             runpod_result = await transcribe_with_runpod(audio_url)
-            print("Transcription complete!")
+            log_handler.info("Transcription complete!")
         finally:
-            print("Deleting audio from ImageKit...")
+            log_handler.info("Deleting audio from ImageKit...")
             delete_from_imagekit(imagekit_file_id)
 
         # ========== Save results ==========
-        print(f"RunPod result type: {type(runpod_result)}")
-        print(f"RunPod result: {runpod_result}")
+        log_handler.debug(f"RunPod result type: {type(runpod_result)}")
+        log_handler.debug(f"RunPod result: {runpod_result}")
         
         if runpod_result is None:
-            print("Warning: RunPod returned None, creating empty result")
+            log_handler.warning("Warning: RunPod returned None, creating empty result")
             runpod_result = {"transcript": "", "status": "failed", "error": "RunPod returned None"}
         
         with open(f"{video_id}_transcript.json", "w", encoding="utf-8") as f:
@@ -440,13 +528,13 @@ async def main_async(youtube_url: str):
         with open(f"{video_id}_transcript.txt", "w", encoding="utf-8") as f:
             f.write(transcript_text)
 
-        print(f"Full transcript saved as '{video_id}_transcript.txt' and JSON as '{video_id}_transcript.json'.")
+        log_handler.info(f"Full transcript saved as '{video_id}_transcript.txt' and JSON as '{video_id}_transcript.json'.")
         return runpod_result
 
     finally:
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
-            print(f"Temporary files in {temp_dir} deleted")
+            log_handler.info(f"Temporary files in {temp_dir} deleted")
 
 # ================= Entry Point =================
 # if __name__ == "__main__":
@@ -456,15 +544,15 @@ async def main_async(youtube_url: str):
 # ================= Test / Entry Point =================
 if __name__ == "__main__":
     # Print environment info for debugging
-    print("=== Environment Check ===")
-    print(f"Root directory: {root_dir}")
-    print(f".env file path: {env_path}")
-    print(f".env file exists: {os.path.exists(env_path)}")
-    print(f"RUNPOD_API_KEY loaded: {'Yes' if RUNPOD_API_KEY else 'No'}")
-    print(f"RUNPOD_ENDPOINT_ID loaded: {'Yes' if RUNPOD_ENDPOINT_ID else 'No'}")
-    print(f"IMAGEKIT_PRIVATE_KEY loaded: {'Yes' if IMAGEKIT_PRIVATE_KEY else 'No'}")
-    print(f"SKIP_TRANSCRIPT_CHECK: {SKIP_TRANSCRIPT_CHECK}")
-    print("========================\n")
+    log_handler.info("=== Environment Check ===")
+    log_handler.info(f"Root directory: {root_dir}")
+    log_handler.info(f".env file path: {env_path}")
+    log_handler.info(f".env file exists: {os.path.exists(env_path)}")
+    log_handler.info(f"RUNPOD_API_KEY loaded: {'Yes' if RUNPOD_API_KEY else 'No'}")
+    log_handler.info(f"RUNPOD_ENDPOINT_ID loaded: {'Yes' if RUNPOD_ENDPOINT_ID else 'No'}")
+    log_handler.info(f"IMAGEKIT_PRIVATE_KEY loaded: {'Yes' if IMAGEKIT_PRIVATE_KEY else 'No'}")
+    log_handler.info(f"SKIP_TRANSCRIPT_CHECK: {SKIP_TRANSCRIPT_CHECK}")
+    log_handler.info("========================")
     
     # Test URLs - try these in order if one fails
     TEST_URLS = [
@@ -473,30 +561,30 @@ if __name__ == "__main__":
         # "https://www.youtube.com/watch?v=kJQP7kiw5Fk",  # Luis Fonsi - Despacito
     ]
 
-    print("Starting YouTube ETL test...")
+    log_handler.info("Starting YouTube ETL test...")
     
     for i, test_url in enumerate(TEST_URLS):
-        print(f"\nTrying URL {i+1}/{len(TEST_URLS)}: {test_url}")
-        print(f"Video ID: {get_y_video_id(test_url)}")
+        log_handler.info(f"Trying URL {i+1}/{len(TEST_URLS)}: {test_url}")
+        log_handler.info(f"Video ID: {get_y_video_id(test_url)}")
         
         try:
             result = asyncio.run(main_async(test_url))
-            print("\nTest finished successfully!")
+            log_handler.info("Test finished successfully!")
             if isinstance(result, dict):
-                print("RunPod transcription keys:", list(result.keys()))
+                log_handler.info(f"RunPod transcription keys: {list(result.keys())}")
             else:
-                print("Transcript (YouTube captions):")
-                print(result[:300], "...")  # print first 300 chars
+                log_handler.info("Transcript (YouTube captions):")
+                log_handler.info(f"{result[:300]}...")  # log first 300 chars
             break  # Success, exit the loop
             
         except Exception as e:
-            print(f"Test failed with URL {i+1}:")
-            print(f"Error type: {type(e).__name__}")
-            print(f"Error message: {e}")
+            log_handler.error(f"Test failed with URL {i+1}:")
+            log_handler.error(f"Error type: {type(e).__name__}")
+            log_handler.error(f"Error message: {e}")
             
             if i == len(TEST_URLS) - 1:  # Last URL failed
-                print("\nAll test URLs failed. Full traceback for last attempt:")
+                log_handler.error("All test URLs failed. Full traceback for last attempt:")
                 import traceback
-                traceback.print_exc()
+                log_handler.error(traceback.format_exc())
             else:
-                print("Trying next URL...\n")
+                log_handler.info("Trying next URL...")
