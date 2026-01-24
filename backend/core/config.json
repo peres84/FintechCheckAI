@@ -30,6 +30,15 @@
             "endpoint_prefix": "/api/youtube",
             "endpoint_tag": "youtube",
             "transcript_route": "/transcript"
+        },
+        "ai_agent_endpoint": {
+            "request_limit": 5,
+            "unit_of_time_for_limit": "minute",
+            "endpoint_prefix": "/api/ai-agent",
+            "endpoint_tag": "ai-agent",
+            "extract_claims_route": "/extract-claims",
+            "compare_claims_route": "/compare-claims",
+            "verify_video_route": "/verify-youtube-video"
         }
     }
 }

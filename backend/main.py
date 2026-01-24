@@ -18,7 +18,7 @@ load_dotenv()
 # Import with absolute paths
 from backend.core.logging import log_handler
 from backend.core.config import config
-from backend.api.routes import documents, verification, youtube
+from backend.api.routes import documents, verification, youtube, ai_agent
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,6 +35,7 @@ app = FastAPI(
 )
 
 app.include_router(youtube.router, prefix="/api/youtube", tags=["youtube"])
+app.include_router(ai_agent.router, prefix="/api/ai-agent", tags=["ai-agent"])
 app.include_router(verification.router, prefix="/api", tags=["verification"])
 app.include_router(documents.router, prefix="/api", tags=["documents"])
 
