@@ -1,0 +1,56 @@
+{
+    "project_name":"FinTech Check AI",
+
+    "network": {
+        "host": "127.0.0.1",
+        "server_port": 8000,
+        "uvicorn_app_reference": "backend.main:app",
+        "reload": true,
+        "workers": 1,
+        "proxy_headers": true
+    },
+
+    "openai": {
+        "default_model": "gpt-4o-mini",
+        "available_models": [
+            "gpt-4o-mini",
+            "gpt-4o",
+            "gpt-4",
+            "gpt-3.5-turbo",
+            "gpt-3.5-turbo-mini"
+        ]
+    },
+
+    "logging":{
+        "logging_level":"debug",
+        "dir_name":"logs",
+        "log_file_name":"fintech_check_ai"
+    },
+
+    "endpoints": {
+        "root_directory_endpoint":{
+            "request_limit":25,
+            "unit_of_time_for_limit":"minute",
+            "endpoint_prefix": "",
+            "endpoint_tag":"root",
+            "endpoint_route": "/"
+        },
+        "youtube_endpoint": {
+            "request_limit": 10,
+            "unit_of_time_for_limit": "minute",
+            "endpoint_prefix": "/api/youtube",
+            "endpoint_tag": "youtube",
+            "transcript_route": "/transcript"
+        },
+        "ai_agent_endpoint": {
+            "request_limit": 5,
+            "unit_of_time_for_limit": "minute",
+            "endpoint_prefix": "/api/ai-agent",
+            "endpoint_tag": "ai-agent",
+            "extract_claims_route": "/extract-claims",
+            "compare_claims_route": "/compare-claims",
+            "verify_video_route": "/verify-youtube-video",
+            "verify_files_route": "/verify-from-files"
+        }
+    }
+}
