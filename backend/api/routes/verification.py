@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from ..models.schemas import VerificationRequest, VerificationResponse
+from ...models.schemas import VerificationRequest, VerificationResponse
 
 router = APIRouter()
 

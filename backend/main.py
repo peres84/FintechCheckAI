@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from .api import documents, verification, youtube
+from .api.routes import documents, verification, youtube
 
 app = FastAPI(title="Fintech Check AI", version="0.1.0")
 

@@ -5,6 +5,7 @@ A fact-checking platform that verifies claims made in YouTube videos against off
 ## Stack
 
 - FastAPI (Python 3.11+)
+- UV (Python package manager)
 - Tower.dev + Apache Iceberg
 - RunPod (OCR via Marker-PDF/DocTR)
 - LangChain + OpenAI
@@ -12,11 +13,9 @@ A fact-checking platform that verifies claims made in YouTube videos against off
 
 ## Repository layout
 
-- backend/ - FastAPI application and services
-- tower/ - Tower apps and Iceberg schemas
-- agents/ - claim extraction and verification agents
-- etl/ - PDF processing pipeline utilities
-- frontend/ - static landing page (Phase 6)
+- backend/ - FastAPI app, services, agents, ETL, and Tower apps
+- tests/ - API, services, agents, ETL, and Tower tests
+- frontend/ - static landing page assets
 - docs/ - architecture and API docs
 
 ## Quick start
@@ -24,16 +23,16 @@ A fact-checking platform that verifies claims made in YouTube videos against off
 1) Create a virtual environment and install dependencies:
 
 ```bash
-cd backend
 python -m venv .venv
 . .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install uv
+uv pip install -e ./backend
 ```
 
 2) Start the API server:
 
 ```bash
-uvicorn app.main:app --reload
+uvicorn backend.main:app --reload
 ```
 
 3) Open the landing page:

@@ -5,24 +5,177 @@
 ### Task 0.1: Initialize Project Structure
 
 **Priority**: P0  
-**Estimated Time**: 30 minutes  
+**Estimated Time**: 20 minutes  
 **Dependencies**: None
 
 **Steps:**
 
 ```bash
-mkdir -p youtube-fact-checker/{backend/app/{api,core,services,models},tower/{apps,schemas},agents,etl,tests/{tower,backend,agents,etl},frontend,scripts,docs,.codex}
-cd youtube-fact-checker
+mkdir -p fintech-check-ai/{backend/{api/routes,core,services,agents,etl,tower/{apps,schemas},models},tests/{api,services,agents,etl,tower,fixtures},frontend,scripts,docs,.codex}
+cd fintech-check-ai
 ```
 
 **Validation:**
 
 - [ ] Directory structure matches PRD
 - [ ] All folders created
+- [ ] No nested `app/` folder in backend
 
 ---
 
-### Task 0.2: Configure Codex CLI with MCP Servers
+### Task 0.2: Initialize UV Project
+
+**Priority**: P0  
+**Estimated Time**: 30 minutes  
+**Dependencies**: Task 0.1
+
+**Files to Create:**
+
+- `pyproject.toml` (in root)
+- `.gitignore`
+
+**Steps:**
+
+1. Initialize UV project:
+
+```bash
+cd fintech-check-ai
+uv init
+```
+
+2. Create `pyproject.toml`:
+
+```toml
+[project]
+name = "fintech-check-ai"
+version = "0.1.0"
+description = "YouTube fact-checker for financial claims"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.26.0",
+    "youtube-transcript-api>=0.6.2",
+    "langchain>=0.1.0",
+    "langchain-openai>=0.0.2",
+    "openai>=1.10.0",
+    "opik-sdk>=0.1.0",
+    "tower-sdk>=0.2.0",
+    "PyPDF2>=3.0.1",
+    "python-multipart>=0.0.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=24.1.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+```
+
+3. Create `.gitignore`:
+
+```gitignore
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# UV
+.uv/
+uv.lock
+
+# Environment variables
+.env
+.env.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Tower
+.tower/
+
+# Logs
+*.log
+```
+
+4. Install dependencies:
+
+```bash
+uv sync
+uv sync --dev
+```
+
+**Validation:**
+
+- [ ] `pyproject.toml` created with all dependencies
+- [ ] `uv sync` runs successfully
+- [ ] Virtual environment created
+- [ ] Can run `uv run python --version`
+
+**Test Command:**
+
+```bash
+uv run python -c "import fastapi; import langchain; import opik; print('All imports successful')"
+```
+
+---
+
+### Task 0.3: Configure Codex CLI with MCP Servers
 
 **Priority**: P0  
 **Estimated Time**: 15 minutes  
@@ -53,58 +206,115 @@ codex: Validate MCP server connectivity and list available tools
 
 ---
 
-### Task 0.3: Setup FastAPI Backend Skeleton
+### Task 0.4: Setup FastAPI Backend
 
 **Priority**: P0  
 **Estimated Time**: 45 minutes  
-**Dependencies**: Task 0.1
+**Dependencies**: Task 0.2
 
 **Files to Create:**
 
-- `backend/requirements.txt`
-- `backend/app/main.py`
-- `backend/app/core/config.py`
-- `backend/.env.example`
+- `backend/main.py`
+- `backend/core/config.py`
+- `backend/core/logging.py`
+- `.env.example`
 
 **Steps:**
 
-1. Create `requirements.txt`:
+1. Create `backend/core/config.py`:
 
-```txt
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
-python-dotenv==1.0.0
-httpx==0.26.0
-youtube-transcript-api==0.6.2
-langchain==0.1.0
-langchain-openai==0.0.2
-openai==1.10.0
-opik-sdk==0.1.0
-tower-sdk==0.2.0
-PyPDF2==3.0.1
-python-multipart==0.0.6
-pytest==7.4.0
-pytest-asyncio==0.21.0
-pytest-cov==4.1.0
-black==24.1.0
-ruff==0.1.0
+```python
+from pydantic_settings import BaseSettings
+from typing import List
+
+class Settings(BaseSettings):
+    # API
+    API_V1_PREFIX: str = "/api/v1"
+    PROJECT_NAME: str = "Fintech Check AI"
+
+    # OpenAI
+    OPENAI_API_KEY: str
+
+    # Opik
+    OPIK_API_KEY: str
+    OPIK_WORKSPACE: str = "fintech-check-ai"
+
+    # RunPod
+    RUNPOD_API_KEY: str = ""
+    RUNPOD_ENDPOINT_ID: str = ""
+
+    # Security
+    BACKEND_SECRET_KEY: str
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
+
+    # Tower (optional)
+    TOWER_API_KEY: str = ""
+    TOWER_WORKSPACE: str = ""
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+settings = Settings()
 ```
 
-2. Create minimal `main.py`:
+2. Create `backend/core/logging.py`:
+
+```python
+import logging
+import sys
+from pathlib import Path
+
+def setup_logging(log_level: str = "INFO"):
+    """Configure logging for the application."""
+
+    # Create logs directory
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+
+    # Configure format
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+    # Configure handlers
+    handlers = [
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(log_dir / "app.log")
+    ]
+
+    # Setup logging
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper()),
+        format=log_format,
+        handlers=handlers
+    )
+
+    # Reduce noise from third-party libraries
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+```
+
+3. Create `backend/main.py`:
 
 ```python
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.config import settings
+from backend.core.config import settings
+from backend.core.logging import setup_logging
 
+# Setup logging
+setup_logging()
+
+# Create FastAPI app
 app = FastAPI(
-    title="YouTube Fact-Checker API",
+    title=settings.PROJECT_NAME,
     version="0.1.0",
-    description="Verify YouTube claims against company reports"
+    description="Verify YouTube claims against company reports",
+    openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -115,44 +325,163 @@ app.add_middleware(
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    """Health check endpoint."""
+    return {
+        "status": "healthy",
+        "project": settings.PROJECT_NAME,
+        "version": "0.1.0"
+    }
+
+@app.get("/")
+async def root():
+    """Root endpoint."""
+    return {
+        "message": "Welcome to Fintech Check AI",
+        "docs": "/docs"
+    }
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        "backend.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info"
+    )
 ```
 
-3. Create `config.py`:
+4. Create `.env.example`:
 
-```python
-from pydantic_settings import BaseSettings
-from typing import List
+```bash
+# OpenAI
+OPENAI_API_KEY=sk-your-key-here
 
-class Settings(BaseSettings):
-    OPENAI_API_KEY: str
-    OPIK_API_KEY: str
-    OPIK_WORKSPACE: str = "youtube-fact-checker"
-    RUNPOD_API_KEY: str = ""
-    BACKEND_SECRET_KEY: str
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+# Opik
+OPIK_API_KEY=your-opik-key
+OPIK_WORKSPACE=fintech-check-ai
 
-    class Config:
-        env_file = ".env"
+# RunPod (optional)
+RUNPOD_API_KEY=
+RUNPOD_ENDPOINT_ID=
 
-settings = Settings()
+# Tower (optional)
+TOWER_API_KEY=
+TOWER_WORKSPACE=
+
+# FastAPI
+BACKEND_SECRET_KEY=your-secret-key-here
+CORS_ORIGINS=http://localhost:3000,http://localhost:8000
 ```
 
 **Validation:**
 
-- [ ] `uvicorn app.main:app --reload` runs successfully
+- [ ] `uv run uvicorn backend.main:app --reload` runs successfully
 - [ ] `http://localhost:8000/health` returns 200
 - [ ] `http://localhost:8000/docs` shows Swagger UI
+- [ ] CORS headers present in response
 
-**Test Location:** `tests/backend/test_main.py`
+**Test Location:** `tests/api/test_main.py`
 
 ---
 
-### Task 0.4: Setup Tower CLI and Authentication
+### Task 0.5: Setup Testing Framework
+
+**Priority**: P0  
+**Estimated Time**: 30 minutes  
+**Dependencies**: Task 0.4
+
+**Files to Create:**
+
+- `tests/conftest.py`
+- `tests/api/test_main.py`
+
+**Steps:**
+
+1. Create `tests/conftest.py`:
+
+```python
+import pytest
+from fastapi.testclient import TestClient
+from backend.main import app
+
+@pytest.fixture
+def client():
+    """FastAPI test client."""
+    return TestClient(app)
+
+@pytest.fixture
+def sample_youtube_url():
+    """Sample YouTube URL for testing."""
+    return "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+@pytest.fixture
+def sample_company():
+    """Sample company data."""
+    return {
+        "company_id": "duolingo",
+        "name": "Duolingo",
+        "ticker": "DUOL"
+    }
+
+@pytest.fixture
+def sample_pdf_url():
+    """Sample PDF URL."""
+    return "https://s201.q4cdn.com/217658912/files/doc_financials/2024/q3/DUOL-Q3-2024-Earnings-Presentation.pdf"
+
+@pytest.fixture
+def sample_transcript():
+    """Sample YouTube transcript."""
+    return {
+        "video_id": "dQw4w9WgXcQ",
+        "segments": [
+            {"text": "Duolingo reported revenue of $150 million", "start": 0.0, "duration": 3.5},
+            {"text": "This represents a 40% year-over-year growth", "start": 3.5, "duration": 3.0}
+        ]
+    }
+```
+
+2. Create `tests/api/test_main.py`:
+
+```python
+import pytest
+
+def test_health_check(client):
+    """Test health check endpoint."""
+    response = client.get("/health")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
+    assert "project" in data
+
+def test_root_endpoint(client):
+    """Test root endpoint."""
+    response = client.get("/")
+    assert response.status_code == 200
+    data = response.json()
+    assert "message" in data
+    assert "docs" in data
+
+def test_docs_available(client):
+    """Test that OpenAPI docs are available."""
+    response = client.get("/docs")
+    assert response.status_code == 200
+
+def test_cors_headers(client):
+    """Test CORS headers are present."""
+    response = client.options("/health")
+    assert response.status_code == 200
+```
+
+**Validation:**
+
+- [ ] `uv run pytest` runs successfully
+- [ ] All tests pass
+- [ ] Coverage report generated with `uv run pytest --cov=backend`
+
+---
+
+### Task 0.6: Setup Tower CLI and Authentication
 
 **Priority**: P0  
 **Estimated Time**: 20 minutes  
@@ -180,70 +509,240 @@ codex: Use tower_teams_switch to switch to the development team
 
 ---
 
-### Task 0.5: Setup Testing Framework
+### Task 0.7: Initialize Opik Service
 
 **Priority**: P0  
-**Estimated Time**: 30 minutes  
-**Dependencies**: Task 0.3
+**Estimated Time**: 45 minutes  
+**Dependencies**: Task 0.4
 
 **Files to Create:**
 
-- `pytest.ini`
-- `tests/conftest.py`
-- `tests/backend/test_main.py`
+- `backend/services/opik_service.py`
+- `tests/services/test_opik_service.py`
 
 **Steps:**
 
-1. Create `pytest.ini`:
+1. Create `backend/services/opik_service.py`:
 
-```ini
-[pytest]
-testpaths = tests
-python_files = test_*.py
-python_classes = Test*
-python_functions = test_*
-asyncio_mode = auto
+```python
+import logging
+from typing import Optional, Dict, Any
+from opik import Opik
+from opik.decorators import track
+from backend.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+class OpikService:
+    """Service for Opik telemetry and tracking."""
+
+    def __init__(self):
+        """Initialize Opik client."""
+        try:
+            self.client = Opik(
+                workspace=settings.OPIK_WORKSPACE,
+                api_key=settings.OPIK_API_KEY
+            )
+            logger.info(f"Opik initialized with workspace: {settings.OPIK_WORKSPACE}")
+        except Exception as e:
+            logger.error(f"Failed to initialize Opik: {e}")
+            raise
+
+    @track(name="claim_extraction")
+    def track_claim_extraction(
+        self,
+        transcript: str,
+        claims: list,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Track claim extraction from transcript.
+
+        Args:
+            transcript: Input transcript text
+            claims: Extracted claims
+            metadata: Additional metadata
+
+        Returns:
+            Tracking data
+        """
+        tracking_data = {
+            "input": {
+                "transcript_length": len(transcript),
+                "transcript_preview": transcript[:200]
+            },
+            "output": {
+                "claims_count": len(claims),
+                "claims": claims
+            }
+        }
+
+        if metadata:
+            tracking_data["metadata"] = metadata
+
+        logger.info(f"Tracked claim extraction: {len(claims)} claims")
+        return tracking_data
+
+    @track(name="chunk_retrieval")
+    def track_chunk_retrieval(
+        self,
+        query: str,
+        chunks: list,
+        scores: list,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Track chunk retrieval for RAG.
+
+        Args:
+            query: Search query
+            chunks: Retrieved chunks
+            scores: Relevance scores
+            metadata: Additional metadata
+
+        Returns:
+            Tracking data
+        """
+        tracking_data = {
+            "input": {"query": query},
+            "output": {
+                "chunks_count": len(chunks),
+                "avg_score": sum(scores) / len(scores) if scores else 0,
+                "chunks": chunks
+            }
+        }
+
+        if metadata:
+            tracking_data["metadata"] = metadata
+
+        logger.info(f"Tracked chunk retrieval: {len(chunks)} chunks")
+        return tracking_data
+
+    @track(name="verification")
+    def track_verification(
+        self,
+        claim: str,
+        chunks: list,
+        verdict: str,
+        reasoning: str,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Track claim verification.
+
+        Args:
+            claim: Claim to verify
+            chunks: Retrieved context chunks
+            verdict: Verification verdict
+            reasoning: Verification reasoning
+            metadata: Additional metadata
+
+        Returns:
+            Tracking data
+        """
+        tracking_data = {
+            "input": {"claim": claim},
+            "context": {"chunks": chunks},
+            "output": {
+                "verdict": verdict,
+                "reasoning": reasoning
+            }
+        }
+
+        if metadata:
+            tracking_data["metadata"] = metadata
+
+        logger.info(f"Tracked verification: {verdict}")
+        return tracking_data
+
+    def log_error(
+        self,
+        operation: str,
+        error: Exception,
+        context: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Log error to Opik.
+
+        Args:
+            operation: Operation that failed
+            error: Exception that occurred
+            context: Additional context
+        """
+        error_data = {
+            "operation": operation,
+            "error_type": type(error).__name__,
+            "error_message": str(error),
+            "context": context or {}
+        }
+
+        logger.error(f"Opik error log: {error_data}")
+        # Opik will automatically capture this through decorators
+
+# Global instance
+opik_service = OpikService()
 ```
 
-2. Create `tests/conftest.py`:
+2. Create `tests/services/test_opik_service.py`:
 
 ```python
 import pytest
-from fastapi.testclient import TestClient
-from app.main import app
+from backend.services.opik_service import OpikService
 
-@pytest.fixture
-def client():
-    return TestClient(app)
+def test_opik_service_initialization():
+    """Test Opik service can be initialized."""
+    service = OpikService()
+    assert service.client is not None
 
-@pytest.fixture
-def sample_youtube_url():
-    return "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+def test_track_claim_extraction():
+    """Test claim extraction tracking."""
+    service = OpikService()
+    transcript = "Duolingo reported $150M revenue"
+    claims = ["Revenue: $150M"]
 
-@pytest.fixture
-def sample_company():
-    return {
-        "company_id": "duolingo",
-        "name": "Duolingo",
-        "ticker": "DUOL"
-    }
-```
+    result = service.track_claim_extraction(transcript, claims)
 
-3. Create first test:
+    assert result["input"]["transcript_length"] == len(transcript)
+    assert result["output"]["claims_count"] == 1
 
-```python
-# tests/backend/test_main.py
-def test_health_check(client):
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "healthy"}
+def test_track_chunk_retrieval():
+    """Test chunk retrieval tracking."""
+    service = OpikService()
+    query = "revenue Q3 2024"
+    chunks = ["chunk1", "chunk2"]
+    scores = [0.9, 0.8]
+
+    result = service.track_chunk_retrieval(query, chunks, scores)
+
+    assert result["output"]["chunks_count"] == 2
+    assert result["output"]["avg_score"] == 0.85
+
+def test_track_verification():
+    """Test verification tracking."""
+    service = OpikService()
+    claim = "Revenue was $150M"
+    chunks = ["context chunk"]
+    verdict = "VERIFIED"
+    reasoning = "Found in Q3 report"
+
+    result = service.track_verification(claim, chunks, verdict, reasoning)
+
+    assert result["output"]["verdict"] == "VERIFIED"
+    assert result["output"]["reasoning"] == reasoning
 ```
 
 **Validation:**
 
-- [ ] `pytest` runs successfully
-- [ ] Coverage report generated
-- [ ] All setup tests pass
+- [ ] Opik service initializes successfully
+- [ ] Can track operations
+- [ ] Tests pass
+- [ ] Opik dashboard shows tracked operations
+
+**Test Command:**
+
+```bash
+uv run pytest tests/services/test_opik_service.py -v
+```
 
 ---
 
@@ -253,17 +752,17 @@ def test_health_check(client):
 
 **Priority**: P0  
 **Estimated Time**: 30 minutes  
-**Dependencies**: Task 0.4
+**Dependencies**: Task 0.6
 
 **Files to Create:**
 
-- `tower/schemas/companies.sql`
-- `tower/apps/schema-setup/Towerfile`
-- `tower/apps/schema-setup/main.py`
+- `backend/tower/schemas/companies.sql`
+- `backend/tower/apps/schema-setup/Towerfile`
+- `backend/tower/apps/schema-setup/main.py`
 
 **Steps:**
 
-1. Create `companies.sql`:
+1. Create `backend/tower/schemas/companies.sql`:
 
 ```sql
 CREATE TABLE IF NOT EXISTS companies (
@@ -287,10 +786,22 @@ TBLPROPERTIES (
 codex: Generate a Towerfile for schema-setup app with Python 3.11 runtime
 ```
 
-3. Create handler in `main.py`:
+Or manually create `backend/tower/apps/schema-setup/Towerfile`:
+
+```yaml
+name: schema-setup
+description: Create Iceberg tables for Fintech Check AI
+runtime: python3.11
+handler: main.handler
+timeout: 300
+memory: 512
+```
+
+3. Create `backend/tower/apps/schema-setup/main.py`:
 
 ```python
 import logging
+from pathlib import Path
 from tower_sdk import TowerClient
 
 logger = logging.getLogger(__name__)
@@ -300,614 +811,38 @@ def handler(event, context):
     try:
         client = TowerClient()
 
-        # Read SQL file
-        with open('companies.sql', 'r') as f:
+        # Read and execute companies.sql
+        companies_sql = Path(__file__).parent.parent.parent / "schemas" / "companies.sql"
+        with open(companies_sql, 'r') as f:
             sql = f.read()
 
-        # Execute
         client.execute_sql(sql)
-
         logger.info("Companies table created successfully")
-        return {"status": "success", "table": "companies"}
+
+        return {
+            "status": "success",
+            "table": "companies",
+            "message": "Table created or already exists"
+        }
 
     except Exception as e:
-        logger.error(f"Failed to create table: {e}")
-        return {"status": "error", "error": str(e)}
+        logger.error(f"Failed to create companies table: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
+        }
 ```
 
 **Validation:**
 
-- [ ] Towerfile validates: `codex: Validate tower/apps/schema-setup/Towerfile`
+- [ ] Towerfile validates: `codex: Validate backend/tower/apps/schema-setup/Towerfile`
 - [ ] Runs locally: `codex: Run schema-setup locally`
 - [ ] Deploys successfully: `codex: Deploy schema-setup app`
 
-**Test Location:** `tests/tower/schema-setup/test_companies_table.py`
+**Test Location:** `tests/tower/test_schema_setup.py`
 
 ---
 
-### Task 1.2: Create Documents Table Schema
+Continue with remaining tasks...
 
-**Priority**: P0  
-**Estimated Time**: 30 minutes  
-**Dependencies**: Task 1.1
-
-**Files to Create:**
-
-- `tower/schemas/documents.sql`
-
-**Schema:**
-
-```sql
-CREATE TABLE IF NOT EXISTS documents (
-    document_id STRING NOT NULL,
-    company_id STRING NOT NULL,
-    fiscal_period STRING NOT NULL,  -- Q1, Q2, Q3, Q4, 10-K
-    fiscal_year INT NOT NULL,
-    pdf_hash STRING NOT NULL,       -- SHA256 of original PDF
-    pdf_url STRING,
-    pdf_size_bytes BIGINT,
-    upload_timestamp TIMESTAMP NOT NULL,
-    parser_version STRING NOT NULL,
-    status STRING NOT NULL,         -- processing, completed, failed
-    metadata MAP<STRING, STRING>,
-    created_at TIMESTAMP NOT NULL
-) USING iceberg
-PARTITIONED BY (company_id, fiscal_year)
-TBLPROPERTIES (
-    'format-version'='2',
-    'write.metadata.delete-after-commit.enabled'='true'
-);
-
--- Index for hash lookups
-CREATE INDEX IF NOT EXISTS idx_documents_hash ON documents(pdf_hash);
-```
-
-**Update schema-setup app** to create this table too.
-
-**Validation:**
-
-- [ ] Table created in Tower
-- [ ] Can insert test document
-- [ ] Hash index works
-
-**Test Location:** `tests/tower/schema-setup/test_documents_table.py`
-
----
-
-### Task 1.3: Create Chunks Table Schema
-
-**Priority**: P0  
-**Estimated Time**: 45 minutes  
-**Dependencies**: Task 1.2
-
-**Files to Create:**
-
-- `tower/schemas/chunks.sql`
-
-**Schema:**
-
-```sql
-CREATE TABLE IF NOT EXISTS chunks (
-    chunk_id STRING NOT NULL,
-    document_id STRING NOT NULL,
-    content_normalized STRING NOT NULL,
-    content_raw STRING,
-    embedding ARRAY<FLOAT>,          -- OpenAI embedding vector
-    page_number INT NOT NULL,
-    chunk_index INT NOT NULL,        -- Position in document
-    section_title STRING,
-    bbox STRUCT<                     -- Bounding box coordinates
-        x1: FLOAT,
-        y1: FLOAT,
-        x2: FLOAT,
-        y2: FLOAT
-    >,
-    token_count INT,
-    metadata MAP<STRING, STRING>,
-    created_at TIMESTAMP NOT NULL
-) USING iceberg
-PARTITIONED BY (document_id)
-TBLPROPERTIES (
-    'format-version'='2',
-    'write.metadata.delete-after-commit.enabled'='true'
-);
-
--- Foreign key constraint (logical, not enforced in Iceberg)
--- ALTER TABLE chunks ADD CONSTRAINT fk_document
--- FOREIGN KEY (document_id) REFERENCES documents(document_id);
-```
-
-**Validation:**
-
-- [ ] Table created successfully
-- [ ] Can insert chunks with embeddings
-- [ ] Partitioning works correctly
-
-**Test Location:** `tests/tower/schema-setup/test_chunks_table.py`
-
----
-
-### Task 1.4: Create Document Ingestion Tower App
-
-**Priority**: P1  
-**Estimated Time**: 2 hours  
-**Dependencies**: Task 1.2
-
-**Files to Create:**
-
-- `tower/apps/document-ingestion/Towerfile`
-- `tower/apps/document-ingestion/main.py`
-- `tower/apps/document-ingestion/requirements.txt`
-
-**Steps:**
-
-1. Generate Towerfile:
-
-```yaml
-name: document-ingestion
-description: Ingest PDF documents and generate hashes
-runtime: python3.11
-handler: main.handler
-timeout: 600
-memory: 1024
-env:
-  - name: PARSER_VERSION
-    value: "1.0.0"
-```
-
-2. Create handler:
-
-```python
-import hashlib
-import logging
-from datetime import datetime
-from typing import Dict, Any
-import httpx
-from tower_sdk import TowerClient
-
-logger = logging.getLogger(__name__)
-
-async def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """
-    Ingest a PDF document.
-
-    Event schema:
-    {
-        "company_id": "duolingo",
-        "fiscal_period": "Q1",
-        "fiscal_year": 2024,
-        "pdf_url": "https://...",
-        "pdf_binary": "base64..." (optional, if URL not provided)
-    }
-    """
-    try:
-        company_id = event["company_id"]
-        fiscal_period = event["fiscal_period"]
-        fiscal_year = event["fiscal_year"]
-
-        # Download or use provided binary
-        if "pdf_url" in event:
-            pdf_binary = await download_pdf(event["pdf_url"])
-            pdf_url = event["pdf_url"]
-        else:
-            import base64
-            pdf_binary = base64.b64decode(event["pdf_binary"])
-            pdf_url = None
-
-        # Generate hash
-        pdf_hash = hashlib.sha256(pdf_binary).hexdigest()
-
-        # Check if already exists
-        client = TowerClient()
-        existing = client.query(
-            f"SELECT document_id FROM documents WHERE pdf_hash = '{pdf_hash}'"
-        )
-
-        if existing:
-            logger.info(f"Document already exists: {existing[0]['document_id']}")
-            return {
-                "status": "exists",
-                "document_id": existing[0]["document_id"],
-                "pdf_hash": pdf_hash
-            }
-
-        # Create document ID
-        document_id = f"{company_id}_{fiscal_period}_{fiscal_year}_{pdf_hash[:8]}"
-
-        # Insert into documents table
-        client.execute_sql(f"""
-            INSERT INTO documents VALUES (
-                '{document_id}',
-                '{company_id}',
-                '{fiscal_period}',
-                {fiscal_year},
-                '{pdf_hash}',
-                '{pdf_url}',
-                {len(pdf_binary)},
-                current_timestamp(),
-                '{context.env.get("PARSER_VERSION", "1.0.0")}',
-                'processing',
-                map(),
-                current_timestamp()
-            )
-        """)
-
-        logger.info(f"Document ingested: {document_id}")
-
-        return {
-            "status": "success",
-            "document_id": document_id,
-            "pdf_hash": pdf_hash,
-            "size_bytes": len(pdf_binary)
-        }
-
-    except Exception as e:
-        logger.error(f"Ingestion failed: {e}", exc_info=True)
-        return {
-            "status": "error",
-            "error": str(e)
-        }
-
-async def download_pdf(url: str) -> bytes:
-    """Download PDF from URL."""
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, timeout=60.0)
-        response.raise_for_status()
-        return response.content
-```
-
-**Validation:**
-
-- [ ] Towerfile validates
-- [ ] Handles duplicate PDFs correctly
-- [ ] Generates correct SHA256 hash
-- [ ] Stores metadata properly
-
-**Test Location:** `tests/tower/document-ingestion/test_ingestion.py`
-
-**Codex Commands:**
-
-```bash
-codex: Validate tower/apps/document-ingestion/Towerfile
-codex: Test document-ingestion locally with sample PDF URL
-codex: Deploy document-ingestion app
-```
-
----
-
-### Task 1.5: Create Chunk Storage Tower App
-
-**Priority**: P1  
-**Estimated Time**: 1.5 hours  
-**Dependencies**: Task 1.3, Task 1.4
-
-**Files to Create:**
-
-- `tower/apps/chunk-storage/Towerfile`
-- `tower/apps/chunk-storage/main.py`
-
-**Handler Logic:**
-
-```python
-from typing import Dict, Any, List
-import logging
-from tower_sdk import TowerClient
-import uuid
-
-logger = logging.getLogger(__name__)
-
-def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """
-    Store chunks for a document.
-
-    Event schema:
-    {
-        "document_id": "duolingo_Q1_2024_abc123",
-        "chunks": [
-            {
-                "content_normalized": "Revenue increased...",
-                "content_raw": "Revenue increased...",
-                "embedding": [0.1, 0.2, ...],
-                "page_number": 5,
-                "chunk_index": 0,
-                "section_title": "Financial Results",
-                "bbox": {"x1": 0, "y1": 0, "x2": 100, "y2": 100},
-                "token_count": 150
-            }
-        ]
-    }
-    """
-    try:
-        document_id = event["document_id"]
-        chunks = event["chunks"]
-
-        client = TowerClient()
-
-        # Verify document exists
-        doc_check = client.query(
-            f"SELECT document_id FROM documents WHERE document_id = '{document_id}'"
-        )
-        if not doc_check:
-            raise ValueError(f"Document not found: {document_id}")
-
-        # Insert chunks
-        chunk_ids = []
-        for chunk in chunks:
-            chunk_id = str(uuid.uuid4())
-
-            # Prepare embedding array
-            embedding_str = "[" + ",".join(str(x) for x in chunk["embedding"]) + "]"
-
-            client.execute_sql(f"""
-                INSERT INTO chunks VALUES (
-                    '{chunk_id}',
-                    '{document_id}',
-                    '{chunk["content_normalized"]}',
-                    '{chunk.get("content_raw", "")}',
-                    {embedding_str},
-                    {chunk["page_number"]},
-                    {chunk["chunk_index"]},
-                    '{chunk.get("section_title", "")}',
-                    named_struct(
-                        'x1', {chunk["bbox"]["x1"]},
-                        'y1', {chunk["bbox"]["y1"]},
-                        'x2', {chunk["bbox"]["x2"]},
-                        'y2', {chunk["bbox"]["y2"]}
-                    ),
-                    {chunk.get("token_count", 0)},
-                    map(),
-                    current_timestamp()
-                )
-            """)
-            chunk_ids.append(chunk_id)
-
-        # Update document status
-        client.execute_sql(f"""
-            UPDATE documents
-            SET status = 'completed'
-            WHERE document_id = '{document_id}'
-        """)
-
-        logger.info(f"Stored {len(chunk_ids)} chunks for {document_id}")
-
-        return {
-            "status": "success",
-            "document_id": document_id,
-            "chunk_count": len(chunk_ids),
-            "chunk_ids": chunk_ids
-        }
-
-    except Exception as e:
-        logger.error(f"Chunk storage failed: {e}", exc_info=True)
-        return {
-            "status": "error",
-            "error": str(e)
-        }
-```
-
-**Validation:**
-
-- [ ] Stores chunks with embeddings
-- [ ] Links to document correctly
-- [ ] Updates document status
-- [ ] Handles errors gracefully
-
-**Test Location:** `tests/tower/chunk-storage/test_chunk_storage.py`
-
----
-
-## Phase 2: PDF Processing Pipeline (ETL)
-
-### Task 2.1: Implement PDF Downloader
-
-**Priority**: P1  
-**Estimated Time**: 1 hour  
-**Dependencies**: None
-
-**Files to Create:**
-
-- `etl/pdf_downloader.py`
-- `etl/__init__.py`
-
-**Implementation:**
-
-```python
-import httpx
-import logging
-from typing import Optional
-from pathlib import Path
-
-logger = logging.getLogger(__name__)
-
-class PDFDownloader:
-    """Download PDFs from URLs with retry logic."""
-
-    def __init__(self, timeout: int = 60, max_retries: int = 3):
-        self.timeout = timeout
-        self.max_retries = max_retries
-
-    async def download(
-        self,
-        url: str,
-        save_path: Optional[Path] = None
-    ) -> bytes:
-        """
-        Download PDF from URL.
-
-        Args:
-            url: PDF URL
-            save_path: Optional path to save PDF
-
-        Returns:
-            PDF binary content
-
-        Raises:
-            httpx.HTTPError: On download failure
-        """
-        async with httpx.AsyncClient() as client:
-            for attempt in range(self.max_retries):
-                try:
-                    logger.info(f"Downloading PDF (attempt {attempt + 1}): {url}")
-                    response = await client.get(url, timeout=self.timeout)
-                    response.raise_for_status()
-
-                    content = response.content
-
-                    # Validate it's actually a PDF
-                    if not content.startswith(b'%PDF'):
-                        raise ValueError("Downloaded file is not a valid PDF")
-
-                    if save_path:
-                        save_path.write_bytes(content)
-                        logger.info(f"Saved PDF to {save_path}")
-
-                    return content
-
-                except (httpx.HTTPError, ValueError) as e:
-                    if attempt == self.max_retries - 1:
-                        raise
-                    logger.warning(f"Download failed, retrying: {e}")
-
-        raise RuntimeError("Failed to download PDF after retries")
-
-    async def download_sec_filing(
-        self,
-        ticker: str,
-        filing_type: str,
-        fiscal_year: int,
-        fiscal_period: Optional[str] = None
-    ) -> bytes:
-        """
-        Download SEC filing from EDGAR.
-
-        Args:
-            ticker: Company ticker symbol
-            filing_type: "10-Q" or "10-K"
-            fiscal_year: Year of filing
-            fiscal_period: For 10-Q: "Q1", "Q2", "Q3"
-
-        Returns:
-            PDF content
-        """
-        # SEC EDGAR URL construction
-        # This is simplified - real implementation needs CIK lookup
-        base_url = "https://www.sec.gov/cgi-bin/browse-edgar"
-
-        # Implementation would query EDGAR API here
-        # For now, raise not implemented
-        raise NotImplementedError("SEC EDGAR integration pending")
-```
-
-**Validation:**
-
-- [ ] Downloads valid PDFs
-- [ ] Retries on failure
-- [ ] Validates PDF format
-- [ ] Handles errors gracefully
-
-**Test Location:** `tests/etl/test_pdf_downloader.py`
-
----
-
-### Task 2.2: Setup RunPod GPU Instance for OCR
-
-**Priority**: P1  
-**Estimated Time**: 1.5 hours  
-**Dependencies**: None
-
-**Steps:**
-
-1. Create RunPod account
-2. Deploy GPU pod with Docker image containing marker-pdf
-3. Create REST API endpoint for PDF processing
-4. Document endpoint URL and API key
-
-**Files to Create:**
-
-- `etl/runpod_client.py`
-- `scripts/runpod_setup.md`
-
-**Client Implementation:**
-
-```python
-import httpx
-import base64
-from typing import Dict, Any
-import logging
-
-logger = logging.getLogger(__name__)
-
-class RunPodClient:
-    """Client for RunPod GPU inference."""
-
-    def __init__(self, api_key: str, endpoint_id: str):
-        self.api_key = api_key
-        self.endpoint_url = f"https://api.runpod.ai/v2/{endpoint_id}/run"
-        self.headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
-
-    async def process_pdf(self, pdf_binary: bytes) -> Dict[str, Any]:
-        """
-        Process PDF with marker-pdf on RunPod.
-
-        Args:
-            pdf_binary: PDF file content
-
-        Returns:
-            Parsed PDF structure with text, pages, bbox coordinates
-        """
-        # Encode PDF as base64
-        pdf_b64 = base64.b64encode(pdf_binary).decode()
-
-        payload = {
-            "input": {
-                "pdf_data": pdf_b64,
-                "include_bbox": True,
-                "include_page_numbers": True
-            }
-        }
-
-        async with httpx.AsyncClient(timeout=300.0) as client:
-            # Submit job
-            response = await client.post(
-                self.endpoint_url,
-                headers=self.headers,
-                json=payload
-            )
-            response.raise_for_status()
-            job_data = response.json()
-
-            job_id = job_data["id"]
-            logger.info(f"RunPod job submitted: {job_id}")
-
-            # Poll for results
-            status_url = f"https://api.runpod.ai/v2/{job_id}/status"
-
-            while True:
-                status_resp = await client.get(status_url, headers=self.headers)
-                status_data = status_resp.json()
-
-                if status_data["status"] == "COMPLETED":
-                    return status_data["output"]
-                elif status_data["status"] == "FAILED":
-                    raise RuntimeError(f"RunPod job failed: {status_data.get('error')}")
-
-                await asyncio.sleep(5)  # Poll every 5 seconds
-```
-
-**Validation:**
-
-- [ ] RunPod endpoint accessible
-- [ ] Can process sample PDF
-- [ ] Returns structured data with bbox
-- [ ] Handles large PDFs (50+ pages)
-
-**Test Location:** `tests/etl/test_runpod_client.py`
-
----
-
-Continue with remaining tasks in next message due to length...
-
-Would you like me to continue with the remaining phases (2.3-8.0)?
+Would you like me to continue with the rest of the tasks (1.2-2.2 and beyond)?

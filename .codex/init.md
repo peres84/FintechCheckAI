@@ -2,7 +2,7 @@
 
 ## Project Context
 
-This is a YouTube fact-checking platform that verifies claims against official company quarterly reports using Tower.dev, FastAPI, and LangChain.
+This is a YouTube fact-checking platform that verifies claims against official company quarterly reports using Tower.dev, FastAPI, and LangChain. Package management is done with UV.
 
 ## MCP Servers Configuration
 
@@ -15,7 +15,7 @@ This is a YouTube fact-checking platform that verifies claims against official c
 - **Available Tools**:
   - `query-docs`: Query documentation for any library
   - `resolve-library-id`: Get library IDs for documentation
-- **Usage**: Use for FastAPI, LangChain, Tower SDK questions
+- **Usage**: Use for FastAPI, LangChain, Tower SDK, UV questions
 
 ### Magic
 
@@ -61,46 +61,82 @@ codex: Use tower_apps_create to create a new app called "document-ingestion"
 
 # Query documentation when needed
 codex: Use query-docs from Context7 to learn about FastAPI dependency injection
+
+# Query UV documentation
+codex: Use query-docs from Context7 to learn about UV package management
 ```
 
 ### 2. Testing Strategy
 
 Each feature should be developed in isolation with its own test file:
 
-**Tower Apps Testing Pattern:**
+**All tests are in the root `tests/` folder:**
 
 ```
-tests/tower/<app-name>/
-  ├── test_<app-name>.py
-  ├── fixtures/
-  │   └── sample_data.json
-  └── README.md
+tests/
+├── api/
+│   ├── test_youtube_api.py
+│   └── test_verification_api.py
+├── services/
+│   ├── test_youtube_service.py
+│   ├── test_opik_service.py
+│   └── test_rag_service.py
+├── agents/
+│   ├── test_claim_extractor.py
+│   └── test_verification_agent.py
+├── etl/
+│   ├── test_pdf_processor.py
+│   └── test_normalizer.py
+├── tower/
+│   ├── test_document_ingestion.py
+│   └── test_chunk_storage.py
+└── fixtures/
+    ├── sample.pdf
+    └── sample_transcript.json
 ```
 
-**Backend Testing Pattern:**
+### 3. UV Package Management
 
-```
-tests/backend/<module>/
-  ├── test_<feature>.py
-  └── conftest.py (shared fixtures)
+**Why UV?**
+
+- 10-100x faster than pip
+- Built-in virtual environment management
+- Better dependency resolution
+- Lock file support (like npm/yarn)
+
+**Common UV Commands:**
+
+```bash
+# Initialize project (creates pyproject.toml)
+uv init
+
+# Add dependencies
+uv add fastapi uvicorn[standard] pydantic
+
+# Add dev dependencies
+uv add --dev pytest pytest-asyncio black ruff
+
+# Install all dependencies
+uv sync
+
+# Run commands in UV environment
+uv run python backend/main.py
+uv run pytest
+uv run uvicorn backend.main:app --reload
+
+# Update dependencies
+uv lock --upgrade
+
+# Remove dependency
+uv remove <package-name>
 ```
 
-**ETL Testing Pattern:**
-
-```
-tests/etl/
-  ├── test_pdf_processor.py
-  ├── test_normalizer.py
-  └── fixtures/
-      └── sample.pdf
-```
-
-### 3. Tower App Development Workflow
+### 4. Tower App Development Workflow
 
 **Required Towerfile Structure** (from Tower docs):
 
 ```yaml
-# Towerfile
+# Towerfile (located in backend/tower/apps/<app-name>/)
 name: app-name
 description: App description
 runtime: python3.11
@@ -119,21 +155,21 @@ secrets:
 
 **Development Steps:**
 
-1. Create app directory: `tower/apps/<app-name>/`
+1. Create app directory: `backend/tower/apps/<app-name>/`
 2. Generate Towerfile: `codex: Use tower_file_generate`
 3. Write handler in `main.py`
 4. Validate: `codex: Use tower_file_validate`
 5. Test locally: `codex: Use tower_run_local`
-6. Create tests in `tests/tower/<app-name>/`
+6. Create tests in `tests/tower/test_<app-name>.py`
 7. Deploy: `codex: Use tower_deploy`
 8. Check logs: `codex: Use tower_apps_logs --app-name <app-name>`
 
-### 4. Iceberg Table Management
+### 5. Iceberg Table Management
 
 **Creating Tables via Tower Apps:**
 
 ```python
-# tower/apps/schema-setup/main.py
+# backend/tower/apps/schema-setup/main.py
 def handler(event, context):
     from tower_sdk import TowerClient
 
@@ -176,10 +212,65 @@ def test_insert_company():
     assert len(result) == 1
 ```
 
+### 6. Opik Service Integration
+
+**Setting up Opik tracking:**
+
+```python
+# backend/services/opik_service.py
+from opik import Opik
+from opik.decorators import track
+
+class OpikService:
+    def __init__(self):
+        self.client = Opik(
+            workspace="fintech-check-ai",
+            api_key=settings.OPIK_API_KEY
+        )
+
+    @track(name="claim_extraction")
+    def track_claim_extraction(self, transcript: str, claims: list):
+        """Track claim extraction from transcript."""
+        return {
+            "input": {"transcript_length": len(transcript)},
+            "output": {"claims_count": len(claims), "claims": claims}
+        }
+
+    @track(name="verification")
+    def track_verification(self, claim: str, chunks: list, verdict: str):
+        """Track claim verification."""
+        return {
+            "input": {"claim": claim},
+            "context": {"chunks": chunks},
+            "output": {"verdict": verdict}
+        }
+```
+
+**Using Opik in agents:**
+
+```python
+# backend/agents/claim_extractor.py
+from backend.services.opik_service import OpikService
+
+class ClaimExtractor:
+    def __init__(self):
+        self.opik = OpikService()
+
+    def extract_claims(self, transcript: str) -> list:
+        # Extract claims with LLM
+        claims = self._llm_extract(transcript)
+
+        # Track with Opik
+        self.opik.track_claim_extraction(transcript, claims)
+
+        return claims
+```
+
 ## Code Quality Standards
 
 ### Python Standards
 
+- **Package Manager**: UV (fast Python package installer)
 - **Formatter**: Black (line length: 100)
 - **Linter**: Ruff
 - **Type Hints**: Required for all functions
@@ -212,7 +303,7 @@ OPENAI_API_KEY=sk-...
 
 # Opik
 OPIK_API_KEY=...
-OPIK_WORKSPACE=youtube-fact-checker
+OPIK_WORKSPACE=fintech-check-ai
 
 # RunPod
 RUNPOD_API_KEY=...
@@ -232,11 +323,24 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:8000
 
 ## Common Codex Commands
 
+### UV Package Management
+
+```bash
+# Add new dependency
+codex: Add langchain and langchain-openai packages using UV
+
+# Update all dependencies
+codex: Update all UV dependencies to latest versions
+
+# Show installed packages
+codex: List all installed packages with UV
+```
+
 ### Tower Operations
 
 ```bash
 # Validate Towerfile before deploying
-codex: Validate the Towerfile in tower/apps/document-ingestion/
+codex: Validate the Towerfile in backend/tower/apps/document-ingestion/
 
 # Deploy a Tower app
 codex: Deploy the document-ingestion app to Tower
@@ -260,8 +364,11 @@ codex: Query Context7 docs for FastAPI file upload best practices
 # LangChain questions
 codex: Query Context7 docs for LangChain RAG implementation
 
-# Tower SDK questions
-codex: Query Context7 docs for Tower Python SDK table operations
+# UV questions
+codex: Query Context7 docs for UV dependency management
+
+# Opik questions
+codex: Query Context7 docs for Opik tracking decorators
 ```
 
 ### UI Development
@@ -277,23 +384,26 @@ codex: Use Magic to design a results table showing verified claims with citation
 ## Testing Commands
 
 ```bash
-# Run all tests
-pytest
+# Run all tests (from root directory)
+uv run pytest
 
 # Run specific test file
-pytest tests/tower/test_document_ingestion.py
+uv run pytest tests/tower/test_document_ingestion.py
 
 # Run with coverage
-pytest --cov=backend --cov-report=html
+uv run pytest --cov=backend --cov-report=html
 
 # Run only Tower tests
-pytest tests/tower/
+uv run pytest tests/tower/
+
+# Run only API tests
+uv run pytest tests/api/
 
 # Run with verbose output
-pytest -v
+uv run pytest -v
 
 # Run and stop on first failure
-pytest -x
+uv run pytest -x
 ```
 
 ## File Generation Templates
@@ -302,8 +412,8 @@ pytest -x
 
 ```python
 from fastapi import APIRouter, Depends, HTTPException
-from app.models.schemas import RequestModel, ResponseModel
-from app.services.service import Service
+from backend.models.schemas import RequestModel, ResponseModel
+from backend.services.service import Service
 
 router = APIRouter(prefix="/api/endpoint", tags=["endpoint"])
 
@@ -407,11 +517,37 @@ async def test_async_feature():
     assert result is not None
 ```
 
+### Opik Tracking Template
+
+```python
+from opik.decorators import track
+from backend.services.opik_service import OpikService
+
+class MyAgent:
+    def __init__(self):
+        self.opik = OpikService()
+
+    @track(name="my_operation")
+    def my_operation(self, input_data: dict) -> dict:
+        """
+        Operation with Opik tracking.
+
+        This decorator automatically logs:
+        - Input parameters
+        - Output results
+        - Execution time
+        - Any errors
+        """
+        # Your logic here
+        result = process(input_data)
+        return result
+```
+
 ## Development Checklist
 
 Before committing any feature:
 
-- [ ] Code follows style guide (Black formatted)
+- [ ] Code follows style guide (Black formatted, Ruff linted)
 - [ ] Type hints added
 - [ ] Docstrings added
 - [ ] Tests written and passing
@@ -419,8 +555,9 @@ Before committing any feature:
 - [ ] Environment variables documented
 - [ ] Error handling implemented
 - [ ] Logging added for debugging
+- [ ] Opik tracking added for agents/LLM calls
 - [ ] API docs updated (if endpoint added)
-- [ ] README updated if needed
+- [ ] UV dependencies updated in pyproject.toml
 
 ## Debugging Tips
 
@@ -441,12 +578,26 @@ codex: Validate Towerfile and show any errors
 
 ```bash
 # Run with debug logging
-uvicorn app.main:app --reload --log-level debug
+uv run uvicorn backend.main:app --reload --log-level debug
 
 # Test endpoint with curl
 curl -X POST http://localhost:8000/api/verify \
   -H "Content-Type: application/json" \
   -d '{"youtube_url": "...", "company_id": "duolingo"}'
+```
+
+### Opik Debugging
+
+```bash
+# View traces in Opik dashboard
+# Go to https://app.opik.ai and filter by:
+# - Workspace: fintech-check-ai
+# - Operation name (e.g., "claim_extraction")
+# - Time range
+
+# Check for errors in traces
+# Failed operations are highlighted in red
+# Click on trace to see full context including LLM prompts/responses
 ```
 
 ### Database
@@ -461,10 +612,14 @@ codex: Show the schema for the documents table
 
 ## Notes for Codex
 
+- Always use UV for package management (not pip)
+- All backend code goes in `backend/` folder (no nested `app/` folder)
+- All tests go in root `tests/` folder
 - Always validate Tower files before deployment
 - Use Context7 for documentation queries before implementing
 - Test each component in isolation before integration
 - Keep Tower apps small and focused on single responsibility
 - Use proper error handling in all async operations
 - Log important events for debugging
+- Track all agent operations with Opik
 - Run tests after any code changes

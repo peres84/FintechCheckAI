@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from ..models.schemas import DocumentUploadRequest, DocumentUploadResponse
+from ...models.schemas import DocumentUploadRequest, DocumentUploadResponse
 
 router = APIRouter()
 
