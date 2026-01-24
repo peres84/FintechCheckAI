@@ -1,6 +1,15 @@
 {
     "project_name":"FinTech Check AI",
 
+    "network": {
+        "host": "127.0.0.1",
+        "server_port": 8000,
+        "uvicorn_app_reference": "backend.main:app",
+        "reload": true,
+        "workers": 1,
+        "proxy_headers": true
+    },
+
     "logging":{
         "logging_level":"debug",
         "dir_name":"logs",
@@ -10,10 +19,17 @@
     "endpoints": {
         "root_directory_endpoint":{
             "request_limit":25,
-            "unit_of_time_for_limit":"m",
+            "unit_of_time_for_limit":"minute",
             "endpoint_prefix": "",
             "endpoint_tag":"root",
             "endpoint_route": "/"
+        },
+        "youtube_endpoint": {
+            "request_limit": 10,
+            "unit_of_time_for_limit": "minute",
+            "endpoint_prefix": "/api/youtube",
+            "endpoint_tag": "youtube",
+            "transcript_route": "/transcript"
         }
     }
 }

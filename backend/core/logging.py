@@ -2,9 +2,30 @@ import os
 import logging
 import sys
 import datetime
+from pathlib import Path
 
 #Other files imports
 from backend.core.config import config
+
+def get_log_directory() -> str:
+    """
+    Get the log directory path, ensuring it's relative to the project root.
+    
+    Returns:
+        str: Path to the log directory
+    """
+    log_dir_name = config["logging"]["dir_name"]
+    
+    # If we're in the backend directory, go up one level for logs
+    current_dir = Path.cwd()
+    if current_dir.name == "backend":
+        project_root = current_dir.parent
+        log_directory = project_root / log_dir_name
+    else:
+        # Assume we're in project root
+        log_directory = Path(log_dir_name)
+    
+    return str(log_directory)
 
 #Map config string levels to logging module levels
 LOG_LEVELS = {
@@ -32,8 +53,8 @@ log_format = logging.Formatter(
 
 """File handler (File accessible only when it runs locally)"""
 #Create folder
-log_directory = config["logging"]["dir_name"]
-os.makedirs(log_directory,exist_ok=True)
+log_directory = get_log_directory()
+os.makedirs(log_directory, exist_ok=True)
 
 #Create log file
 log_file = os.path.join(
@@ -52,5 +73,5 @@ if not log_handler.hasHandlers():
     log_handler.addHandler(file_handler)
     log_handler.addHandler(console_handler)
 
-log_handler.info(f"Simple Chat backend server starting")
+log_handler.info(f"FinTech Check AI backend server starting")
 log_handler.warning(f"Current working directory: {os.getcwd()}, Logs are written to '{log_file}'")
