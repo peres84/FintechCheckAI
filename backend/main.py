@@ -41,6 +41,8 @@ app.include_router(youtube.router, prefix="/api/youtube", tags=["youtube"])
 app.include_router(ai_agent.router, prefix="/api/ai-agent", tags=["ai-agent"])
 app.include_router(verification.router, prefix="/api", tags=["verification"])
 app.include_router(documents.router, prefix="/api", tags=["documents"])
+app.include_router(companies.router, prefix="/api", tags=["companies"])
+app.include_router(version_diff.router, prefix="/api", tags=["version-diff"])
 
 
 @app.get("/health")
