@@ -5,6 +5,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 # Always add project root to path for consistent imports
@@ -25,8 +26,6 @@ from backend.api.middleware.rate_limit import setup_rate_limiting
 async def lifespan(app: FastAPI):
     port = os.getenv("PORT", config["network"]["server_port"])
     log_handler.info(f"FinTech Check AI backend server starting on port {port}")
-    # Setup rate limiting
-    setup_rate_limiting(app)
     yield
     log_handler.info("FinTech Check AI backend server shutting down")
 
@@ -52,15 +51,8 @@ def health() -> dict:
     return {"status": "ok", "service": "FinTech Check AI"}
 
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", config["network"]["server_port"]))
-    log_handler.info(f"Starting server with configuration: host={config['network']['host']}, port={port}")
-    
-    uvicorn.run(
-        config["network"]["uvicorn_app_reference"], 
-        host=config["network"]["host"], 
-        port=port, 
-        reload=config["network"]["reload"],
-        workers=config["network"]["workers"] if not config["network"]["reload"] else 1,  # Workers must be 1 when reload=True
-        proxy_headers=config["network"]["proxy_headers"]
-    )
+# Note: For production deployment, use the root-level main.py instead:
+# python main.py --host 0.0.0.0 --port $PORT
+#
+# This file is kept for backward compatibility and direct uvicorn usage:
+# uvicorn backend.main:app --reload

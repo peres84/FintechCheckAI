@@ -18,29 +18,69 @@ A fact-checking platform that verifies claims made in YouTube videos against off
 - frontend/ - static landing page assets
 - docs/ - architecture and API docs
 
-## Quick start
+## Quick Start
 
-1) Create a virtual environment and install dependencies:
+### Backend
 
-```bash
-python -m venv .venv
-. .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install uv
-uv pip install -e ./backend
-```
+1. **Install dependencies:**
+   ```bash
+   pip install -r backend/requirements.txt
+   ```
 
-2) Start the API server:
+2. **Set up environment variables:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys
+   ```
 
-```bash
-uvicorn backend.main:app --reload
-```
+3. **Start the server:**
+   ```bash
+   python main.py
+   ```
+   
+   For development with auto-reload:
+   ```bash
+   python main.py --reload
+   ```
 
-3) Open the landing page:
+   The API will be available at `http://127.0.0.1:8000`
+   - API Docs: http://127.0.0.1:8000/docs
+   - Health Check: http://127.0.0.1:8000/health
 
-```bash
-start ../frontend/index.html
-```
+### Frontend
 
-## Environment variables
+1. **Install dependencies:**
+   ```bash
+   cd frontend
+   npm install
+   ```
 
-See `.env.example` for required keys.
+2. **Set up environment variables (optional):**
+   ```bash
+   cp .env.example .env
+   # Edit .env if backend is on different URL
+   ```
+
+3. **Start development server:**
+   ```bash
+   npm run dev
+   ```
+
+   The frontend will be available at `http://localhost:8080`
+
+## Deployment
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions to:
+- **Backend:** Render, Railway, Heroku, DigitalOcean
+- **Frontend:** Vercel, Netlify, Railway
+
+## Environment Variables
+
+See `.env.example` for required keys. Required variables:
+- `OPENAI_API_KEY` - OpenAI API key for AI services
+- `RUNPOD_API_KEY` - RunPod API key for audio transcription
+- `RUNPOD_ENDPOINT_ID` - RunPod endpoint ID
+- `IMAGEKIT_PRIVATE_KEY` - ImageKit private key
+- `IMAGEKIT_URL_ENDPOINT` - ImageKit URL endpoint
+- `TOWER_API_KEY` - Tower.dev API key (optional)
+- `OPIK_API_KEY` - Opik API key (optional)
