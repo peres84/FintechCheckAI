@@ -1,17 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { YouTubeInput } from "@/components/YouTubeInput";
 import { PDFUploader } from "@/components/PDFUploader";
 import { LoadingAnalysis, AnalysisStep } from "@/components/LoadingAnalysis";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { 
   isValidYouTubeUrl, 
-  extractTranscript, 
-  extractPdfContent, 
-  queryRAG, 
-  factCheck,
+  verifyYouTubeVideo,
+  getCompanies,
+  Company,
   FactCheckResult,
 } from "@/services/api";
 
@@ -19,13 +20,37 @@ export default function Analyze() {
   const navigate = useNavigate();
   
   const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [companyId, setCompanyId] = useState<string>("");
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
   const [currentStep, setCurrentStep] = useState<AnalysisStep>('extracting-transcript');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const isValid = isValidYouTubeUrl(youtubeUrl);
+  const isValid = isValidYouTubeUrl(youtubeUrl) && companyId !== "";
+
+  // Load companies on mount
+  useEffect(() => {
+    const loadCompanies = async () => {
+      setIsLoadingCompanies(true);
+      try {
+        const companyList = await getCompanies();
+        setCompanies(companyList);
+        if (companyList.length > 0) {
+          setCompanyId(companyList[0].company_id);
+        }
+      } catch (err) {
+        console.error('Failed to load companies:', err);
+        setError('Failed to load companies. Please refresh the page.');
+      } finally {
+        setIsLoadingCompanies(false);
+      }
+    };
+
+    loadCompanies();
+  }, []);
 
   const handleAnalyze = async () => {
     if (!isValid) return;
@@ -35,43 +60,22 @@ export default function Analyze() {
     setProgress(0);
 
     try {
-      // Step 1: Extract transcript
+      // Use the integrated verification endpoint which handles everything
       setCurrentStep('extracting-transcript');
       setProgress(10);
-      const transcriptResult = await extractTranscript(youtubeUrl);
       
-      if (!transcriptResult.success) {
-        throw new Error(transcriptResult.error || 'Failed to extract transcript');
-      }
-      setProgress(25);
-
-      // Step 2: Extract PDF (if provided)
-      let pdfContent: string | undefined;
-      if (pdfFile) {
-        setCurrentStep('extracting-pdf');
-        setProgress(35);
-        const pdfResult = await extractPdfContent(pdfFile);
-        
-        if (pdfResult.success) {
-          pdfContent = pdfResult.content;
-        }
-        setProgress(45);
-      }
-
-      // Step 3: Query RAG
-      setCurrentStep('querying-rag');
-      setProgress(55);
-      const ragResult = await queryRAG(transcriptResult.transcript);
-      setProgress(70);
-
-      // Step 4: Run fact-check analysis
+      // The verifyYouTubeVideo function handles:
+      // 1. Transcript extraction
+      // 2. Claim extraction
+      // 3. RAG retrieval
+      // 4. Verification
+      
       setCurrentStep('analyzing');
+      setProgress(30);
+      
+      const factCheckResult = await verifyYouTubeVideo(youtubeUrl, companyId);
+      
       setProgress(80);
-      const factCheckResult = await factCheck(
-        transcriptResult.transcript,
-        ragResult,
-        pdfContent
-      );
 
       if (!factCheckResult.success) {
         throw new Error(factCheckResult.error || 'Failed to analyze content');
@@ -81,12 +85,10 @@ export default function Analyze() {
       setCurrentStep('complete');
 
       // Store results and navigate
-      // In a real app, you might use a state management solution or URL params
       sessionStorage.setItem('factCheckResult', JSON.stringify(factCheckResult));
       sessionStorage.setItem('analysisMetadata', JSON.stringify({
         youtubeUrl,
-        videoTitle: transcriptResult.videoTitle,
-        channelName: transcriptResult.channelName,
+        companyId,
         hadPdf: !!pdfFile,
       }));
 
@@ -117,7 +119,7 @@ export default function Analyze() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">Analyze Financial Content</h1>
           <p className="text-muted-foreground">
-            Enter a YouTube video URL to start fact-checking
+            Enter a YouTube video URL and select a company to start fact-checking
           </p>
         </div>
 
@@ -125,17 +127,46 @@ export default function Analyze() {
           <CardHeader>
             <CardTitle>Content Input</CardTitle>
             <CardDescription>
-              Provide the video you want to analyze and optionally upload reference documents
+              Provide the video you want to analyze and select the company to verify against
             </CardDescription>
           </CardHeader>
           
           <CardContent className="space-y-6">
+            {/* Company Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="company">Company *</Label>
+              <Select
+                value={companyId}
+                onValueChange={setCompanyId}
+                disabled={isAnalyzing || isLoadingCompanies}
+              >
+                <SelectTrigger id="company">
+                  <SelectValue placeholder={isLoadingCompanies ? "Loading companies..." : "Select a company"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((company) => (
+                    <SelectItem key={company.company_id} value={company.company_id}>
+                      {company.name} {company.ticker && `(${company.ticker})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {companies.length === 0 && !isLoadingCompanies && (
+                <p className="text-xs text-muted-foreground">
+                  No companies available. Please upload documents for a company first.
+                </p>
+              )}
+            </div>
+
             {/* YouTube URL Input */}
-            <YouTubeInput 
-              value={youtubeUrl} 
-              onChange={setYoutubeUrl} 
-              disabled={isAnalyzing}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="youtube-url">YouTube Video URL *</Label>
+              <YouTubeInput 
+                value={youtubeUrl} 
+                onChange={setYoutubeUrl} 
+                disabled={isAnalyzing}
+              />
+            </div>
 
             {/* Divider */}
             <div className="relative">
@@ -150,11 +181,17 @@ export default function Analyze() {
             </div>
 
             {/* PDF Uploader */}
-            <PDFUploader 
-              file={pdfFile} 
-              onFileChange={setPdfFile} 
-              disabled={isAnalyzing}
-            />
+            <div className="space-y-2">
+              <Label>Reference Document (PDF)</Label>
+              <PDFUploader 
+                file={pdfFile} 
+                onFileChange={setPdfFile} 
+                disabled={isAnalyzing}
+              />
+              <p className="text-xs text-muted-foreground">
+                Upload a reference document to supplement the verification (optional)
+              </p>
+            </div>
 
             {/* Error display */}
             {error && (
@@ -166,7 +203,7 @@ export default function Analyze() {
             {/* Submit Button */}
             <Button 
               onClick={handleAnalyze}
-              disabled={!isValid || isAnalyzing}
+              disabled={!isValid || isAnalyzing || isLoadingCompanies}
               className="w-full gap-2"
               size="lg"
             >

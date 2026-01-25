@@ -1,14 +1,14 @@
 /**
  * FinTech Check AI - API Service Layer
  * 
- * This file contains placeholder functions for all external API integrations.
- * Replace the mock implementations with actual API calls to your backend services.
- * 
- * Each function includes:
- * - TypeScript interfaces for request/response
- * - Expected API endpoint documentation
- * - Mock implementation for development/testing
+ * Integrated with backend FastAPI endpoints.
  */
+
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -90,6 +90,14 @@ export interface ChatResponse {
   error?: string;
 }
 
+export interface Company {
+  company_id: string;
+  name: string;
+  ticker?: string;
+  industry?: string;
+  created_at?: string;
+}
+
 // =============================================================================
 // API FUNCTIONS
 // =============================================================================
@@ -97,282 +105,320 @@ export interface ChatResponse {
 /**
  * Extract transcript from a YouTube video
  * 
- * Your API should:
- * 1. First attempt to get transcript via YouTube Transcript API
- * 2. If unavailable, fall back to:
- *    - Download audio
- *    - Convert to .wav
- *    - Upload to ImageKit
- *    - Send to RunPod Whisper for transcription
- *    - Delete uploaded audio after processing
- * 
  * @param youtubeUrl - Full YouTube video URL
  * @returns TranscriptResult with transcript text and metadata
- * 
- * Expected endpoint: POST /api/extract-transcript
- * Request body: { url: string }
- * Response: TranscriptResult
  */
 export async function extractTranscript(youtubeUrl: string): Promise<TranscriptResult> {
-  // TODO: Replace with actual API call
-  // Example:
-  // const response = await fetch('YOUR_API_ENDPOINT/api/extract-transcript', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({ url: youtubeUrl }),
-  // });
-  // return response.json();
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/youtube/transcript`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: youtubeUrl }),
+    });
 
-  console.log('[API] extractTranscript called with:', youtubeUrl);
-  
-  // Mock implementation for development
-  await simulateDelay(2000);
-  
-  return {
-    success: true,
-    transcript: `This is a mock transcript for the video. In a real implementation, 
-    this would contain the actual spoken content from the YouTube video. 
-    The company reported record earnings this quarter with revenue up 25% year over year.
-    They claim to have zero debt and strong cash reserves of over $10 billion.
-    The CEO mentioned plans to expand into three new markets by next year.
-    Additionally, they stated that their user base has grown to 50 million active users.`,
-    segments: [
-      { text: "This is a mock transcript", start: 0, duration: 3 },
-      { text: "for the video.", start: 3, duration: 2 },
-    ],
-    source: 'youtube-api',
-    videoTitle: 'Mock Video Title',
-    channelName: 'Mock Channel',
-  };
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Failed to extract transcript' }));
+      return {
+        success: false,
+        transcript: '',
+        segments: [],
+        source: 'youtube-api',
+        error: errorData.detail || `HTTP ${response.status}`,
+      };
+    }
+
+    const data = await response.json();
+    
+    // Map backend response to frontend format
+    return {
+      success: data.status === 'completed',
+      transcript: data.transcript || '',
+      segments: [], // Backend doesn't return segments yet
+      source: data.source === 'youtube_captions' ? 'youtube-api' : 'whisper-fallback',
+      videoTitle: data.video_id, // Backend doesn't return title yet
+      channelName: undefined, // Backend doesn't return channel yet
+      error: data.error || undefined,
+    };
+  } catch (error) {
+    console.error('[API] extractTranscript error:', error);
+    return {
+      success: false,
+      transcript: '',
+      segments: [],
+      source: 'youtube-api',
+      error: error instanceof Error ? error.message : 'Network error',
+    };
+  }
 }
 
 /**
  * Extract text content from a PDF document
  * 
+ * Note: The backend doesn't have a direct PDF extraction endpoint.
+ * We'll use the document upload endpoint and process it.
+ * 
  * @param file - PDF file to extract content from
  * @returns PDFExtractionResult with extracted text
- * 
- * Expected endpoint: POST /api/extract-pdf
- * Request body: FormData with 'file' field
- * Response: PDFExtractionResult
  */
 export async function extractPdfContent(file: File): Promise<PDFExtractionResult> {
-  // TODO: Replace with actual API call
-  // Example:
-  // const formData = new FormData();
-  // formData.append('file', file);
-  // const response = await fetch('YOUR_API_ENDPOINT/api/extract-pdf', {
-  //   method: 'POST',
-  //   body: formData,
-  // });
-  // return response.json();
+  try {
+    // For now, we'll upload the document and note that full extraction
+    // would require processing through the PDF service
+    // This is a placeholder - in production, you might want a dedicated endpoint
+    
+    const formData = new FormData();
+    formData.append('pdf_file', file);
+    formData.append('company_id', 'temp'); // Temporary company ID
+    
+    const response = await fetch(`${API_BASE_URL}/api/documents`, {
+      method: 'POST',
+      body: formData,
+    });
 
-  console.log('[API] extractPdfContent called with:', file.name);
-  
-  // Mock implementation for development
-  await simulateDelay(1500);
-  
-  return {
-    success: true,
-    content: `Mock PDF content extracted from ${file.name}. 
-    This would contain the actual text from the uploaded PDF document.
-    Official financial statements, regulatory filings, or other reference documents.`,
-    pageCount: 5,
-    metadata: {
-      title: file.name,
-      author: 'Document Author',
-      creationDate: new Date().toISOString(),
-    },
-  };
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Failed to process PDF' }));
+      return {
+        success: false,
+        content: '',
+        pageCount: 0,
+        error: errorData.detail || `HTTP ${response.status}`,
+      };
+    }
+
+    // Note: The backend document upload doesn't return extracted content yet
+    // This would need to be implemented or we'd need a separate endpoint
+    // For now, return a placeholder
+    return {
+      success: true,
+      content: `PDF uploaded successfully: ${file.name}. Full text extraction requires backend implementation.`,
+      pageCount: 0,
+      metadata: {
+        title: file.name,
+      },
+    };
+  } catch (error) {
+    console.error('[API] extractPdfContent error:', error);
+    return {
+      success: false,
+      content: '',
+      pageCount: 0,
+      error: error instanceof Error ? error.message : 'Network error',
+    };
+  }
 }
 
 /**
  * Query the RAG system (Tower instance) for relevant documents
  * 
- * Your Tower instance should:
- * - Store official documents (PDFs, filings, reports)
- * - Hash documents for immutability verification
- * - Return relevant excerpts based on semantic search
+ * Note: The backend doesn't have a direct RAG query endpoint.
+ * RAG queries are done internally during verification.
+ * This function is kept for compatibility but returns empty results.
  * 
  * @param query - Search query for relevant documents
  * @returns RAGQueryResult with matching documents
- * 
- * Expected endpoint: POST /api/rag/query
- * Request body: { query: string, limit?: number }
- * Response: RAGQueryResult
  */
 export async function queryRAG(query: string): Promise<RAGQueryResult> {
-  // TODO: Replace with actual API call
-  // Example:
-  // const response = await fetch('YOUR_TOWER_ENDPOINT/api/rag/query', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({ query, limit: 10 }),
-  // });
-  // return response.json();
-
+  // The backend doesn't expose a direct RAG query endpoint
+  // RAG queries happen internally during verification
+  // Return empty result for now
   console.log('[API] queryRAG called with:', query);
-  
-  // Mock implementation for development
-  await simulateDelay(1000);
+  console.warn('[API] Direct RAG queries not supported. RAG is used internally during verification.');
   
   return {
     success: true,
-    documents: [
-      {
-        content: 'Official SEC filing excerpt: Company reported Q3 revenue of $5.2 billion...',
-        source: 'SEC 10-Q Filing 2024',
-        relevanceScore: 0.95,
-        hash: 'abc123def456',
-      },
-      {
-        content: 'Annual report states: Total debt obligations reduced to $500 million...',
-        source: 'Annual Report 2023',
-        relevanceScore: 0.87,
-        hash: 'xyz789ghi012',
-      },
-    ],
+    documents: [],
   };
 }
 
 /**
  * Run fact-checking analysis using AI agent
  * 
- * Your agent should:
- * - Analyze the transcript for factual claims
- * - Cross-reference claims against RAG documents
- * - Provide verdicts with evidence and confidence scores
+ * This uses the complete verification workflow endpoint which:
+ * 1. Extracts transcript from YouTube
+ * 2. Extracts claims
+ * 3. Retrieves relevant documents via RAG
+ * 4. Verifies claims against documents
  * 
  * @param transcript - Video transcript text
- * @param ragData - Retrieved documents from RAG system
- * @param pdfContent - Optional additional PDF content
+ * @param ragData - Retrieved documents from RAG system (not used, RAG is internal)
+ * @param pdfContent - Optional additional PDF content (not used yet)
  * @returns FactCheckResult with analyzed claims
- * 
- * Expected endpoint: POST /api/fact-check
- * Request body: { transcript: string, documents: RAGDocument[], pdfContent?: string }
- * Response: FactCheckResult
  */
 export async function factCheck(
   transcript: string,
   ragData: RAGQueryResult,
   pdfContent?: string
 ): Promise<FactCheckResult> {
-  // TODO: Replace with actual API call
-  // Example:
-  // const response = await fetch('YOUR_API_ENDPOINT/api/fact-check', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({ 
-  //     transcript, 
-  //     documents: ragData.documents,
-  //     pdfContent 
-  //   }),
-  // });
-  // return response.json();
+  try {
+    // Extract YouTube URL from transcript if available, or use a placeholder
+    // In a real scenario, we'd need to pass the YouTube URL separately
+    // For now, we'll use the verify-youtube-video endpoint which handles everything
+    
+    // Note: This endpoint requires youtube_url and company_id
+    // We need to modify the frontend to collect company_id
+    // For now, return an error if company_id is not available
+    
+    // This is a limitation - we need the YouTube URL and company ID
+    // The Analyze page should collect company_id
+    throw new Error('Company ID required. Please select a company before analyzing.');
+  } catch (error) {
+    console.error('[API] factCheck error:', error);
+    return {
+      success: false,
+      overallScore: 0,
+      claims: [],
+      summary: '',
+      analyzedAt: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
 
-  console.log('[API] factCheck called');
-  
-  // Mock implementation for development
-  await simulateDelay(3000);
-  
-  return {
-    success: true,
-    overallScore: 72,
-    summary: 'The analyzed content contains a mix of verified and unverifiable claims. Key financial figures appear accurate based on official filings, but some forward-looking statements cannot be confirmed.',
-    analyzedAt: new Date().toISOString(),
-    claims: [
-      {
-        id: '1',
-        text: 'Revenue up 25% year over year',
-        verdict: 'true',
-        confidence: 95,
-        evidence: [
-          {
-            source: 'SEC 10-Q Filing 2024',
-            excerpt: 'Quarterly revenue increased 24.8% compared to the same period last year.',
-            supportLevel: 'supports',
-          },
-        ],
-        explanation: 'This claim is verified by official SEC filings which show 24.8% YoY growth, closely matching the stated 25%.',
-        timestamp: '0:45',
-      },
-      {
-        id: '2',
-        text: 'Zero debt',
-        verdict: 'false',
-        confidence: 88,
-        evidence: [
-          {
-            source: 'Annual Report 2023',
-            excerpt: 'Total debt obligations reduced to $500 million.',
-            supportLevel: 'contradicts',
-          },
-        ],
-        explanation: 'Official filings indicate the company has $500 million in debt, contradicting the claim of zero debt.',
-        timestamp: '1:23',
-      },
-      {
-        id: '3',
-        text: 'Cash reserves of over $10 billion',
-        verdict: 'partial',
-        confidence: 75,
-        evidence: [
-          {
-            source: 'SEC 10-Q Filing 2024',
-            excerpt: 'Cash and cash equivalents totaled $8.7 billion.',
-            supportLevel: 'neutral',
-          },
-        ],
-        explanation: 'The actual cash reserves are $8.7 billion, slightly below the claimed $10 billion. While substantial, the specific figure is overstated.',
-        timestamp: '1:45',
-      },
-      {
-        id: '4',
-        text: 'Plans to expand into three new markets by next year',
-        verdict: 'unverifiable',
-        confidence: 40,
-        evidence: [],
-        explanation: 'No official documentation found to verify or deny expansion plans. This appears to be a forward-looking statement.',
-        timestamp: '2:30',
-      },
-      {
-        id: '5',
-        text: '50 million active users',
-        verdict: 'true',
-        confidence: 92,
-        evidence: [
-          {
-            source: 'Quarterly Earnings Call Transcript',
-            excerpt: 'We are pleased to report that our monthly active user count has reached 51.2 million.',
-            supportLevel: 'supports',
-          },
-        ],
-        explanation: 'Official earnings call confirms 51.2 million MAUs, supporting the claimed 50 million figure.',
-        timestamp: '3:15',
-      },
-    ],
-  };
+/**
+ * Run complete verification workflow from YouTube URL
+ * 
+ * This is the recommended way to do fact-checking as it handles
+ * the complete workflow: transcript extraction, claim extraction,
+ * RAG retrieval, and verification.
+ * 
+ * @param youtubeUrl - YouTube video URL
+ * @param companyId - Company identifier
+ * @returns FactCheckResult with analyzed claims
+ */
+export async function verifyYouTubeVideo(
+  youtubeUrl: string,
+  companyId: string
+): Promise<FactCheckResult> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/ai-agent/verify-youtube-video`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        youtube_url: youtubeUrl,
+        company_id: companyId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Verification failed' }));
+      return {
+        success: false,
+        overallScore: 0,
+        claims: [],
+        summary: '',
+        analyzedAt: new Date().toISOString(),
+        error: errorData.detail || `HTTP ${response.status}`,
+      };
+    }
+
+    const data = await response.json();
+    
+    // Map backend VerificationAnalysisResponse to frontend FactCheckResult
+    const claims: Claim[] = (data.extracted_claims || []).map((claim: any, index: number) => {
+      // Map verification result to verdict
+      const verification = data.verification_results?.verified_claims?.find(
+        (v: any) => v.claim?.claim === claim.claim
+      );
+      
+      let verdict: VerdictType = 'unverifiable';
+      let confidence = 50;
+      let evidence: Claim['evidence'] = [];
+      let explanation = 'No verification data available.';
+      
+      if (verification) {
+        const verdictMap: Record<string, VerdictType> = {
+          'VERIFIED': 'true',
+          'CONTRADICTED': 'false',
+          'PARTIALLY_VERIFIED': 'partial',
+          'NOT_FOUND': 'unverifiable',
+        };
+        verdict = verdictMap[verification.verdict] || 'unverifiable';
+        confidence = verification.confidence || 50;
+        
+        // Map citations to evidence
+        evidence = (verification.citations || []).map((citation: any) => ({
+          source: citation.source || 'Unknown',
+          excerpt: citation.excerpt || citation.content || '',
+          supportLevel: verdict === 'true' ? 'supports' : verdict === 'false' ? 'contradicts' : 'neutral',
+        }));
+        
+        explanation = verification.explanation || verification.reasoning || '';
+      }
+      
+      return {
+        id: `claim-${index}`,
+        text: claim.claim || claim.text || '',
+        verdict,
+        confidence,
+        evidence,
+        explanation,
+        timestamp: claim.timestamp,
+      };
+    });
+    
+    // Calculate overall score from claims
+    const overallScore = claims.length > 0
+      ? Math.round(
+          claims.reduce((sum, claim) => {
+            const scoreMap = { true: 100, false: 0, partial: 50, unverifiable: 50 };
+            return sum + (scoreMap[claim.verdict] * claim.confidence / 100);
+          }, 0) / claims.length
+        )
+      : 0;
+    
+    return {
+      success: true,
+      overallScore,
+      claims,
+      summary: data.executive_summary || data.summary || 'Analysis completed.',
+      analyzedAt: data.metadata?.analysis_timestamp || new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error('[API] verifyYouTubeVideo error:', error);
+    return {
+      success: false,
+      overallScore: 0,
+      claims: [],
+      summary: '',
+      analyzedAt: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Network error',
+    };
+  }
+}
+
+/**
+ * Get list of available companies
+ * 
+ * @returns Array of Company objects
+ */
+export async function getCompanies(): Promise<Company[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/companies`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      console.error('[API] getCompanies failed:', response.status);
+      return [];
+    }
+
+    const data = await response.json();
+    return data.companies || [];
+  } catch (error) {
+    console.error('[API] getCompanies error:', error);
+    return [];
+  }
 }
 
 /**
  * Send a follow-up message to the AI agent for deeper analysis
  * 
- * This endpoint allows users to ask questions about the fact-check results
- * and get more detailed explanations or explore specific claims.
+ * Note: The backend doesn't have a chat endpoint yet.
+ * This is a placeholder for future implementation.
  * 
  * @param message - User's question
  * @param context - Previous analysis context (results, chat history)
  * @returns ChatResponse with agent's reply
- * 
- * Expected endpoint: POST /api/chat
- * Request body: { 
- *   message: string, 
- *   context: { 
- *     analysisId: string,
- *     chatHistory: ChatMessage[] 
- *   } 
- * }
- * Response: ChatResponse
  */
 export async function chatWithAgent(
   message: string,
@@ -382,34 +428,17 @@ export async function chatWithAgent(
     chatHistory: ChatMessage[];
   }
 ): Promise<ChatResponse> {
-  // TODO: Replace with actual API call
-  // Example:
-  // const response = await fetch('YOUR_API_ENDPOINT/api/chat', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({ message, context }),
-  // });
-  // return response.json();
-
+  // TODO: Implement when backend chat endpoint is available
   console.log('[API] chatWithAgent called with:', message);
+  console.warn('[API] Chat endpoint not yet implemented in backend');
   
-  // Mock implementation for development
-  await simulateDelay(1500);
-  
-  // Simple mock responses based on keywords
-  let response = "I can help you understand the fact-check results better. Could you be more specific about which claim you'd like to explore?";
-  
-  if (message.toLowerCase().includes('debt')) {
-    response = "Regarding the debt claim: The official filings clearly show the company has $500 million in outstanding debt obligations. The claim of 'zero debt' appears to be misleading. This debt primarily consists of long-term bonds issued in 2022.";
-  } else if (message.toLowerCase().includes('revenue') || message.toLowerCase().includes('earnings')) {
-    response = "The revenue growth claim of 25% is well-supported. The SEC 10-Q filing shows 24.8% year-over-year growth, which rounds to the stated figure. This growth was driven primarily by their cloud services division.";
-  } else if (message.toLowerCase().includes('reliable') || message.toLowerCase().includes('trust')) {
-    response = "Based on my analysis, the speaker presents mostly accurate information but with some notable exaggerations. The financial figures are generally close to official records, but the 'zero debt' claim is a significant misrepresentation.";
-  }
+  // Mock response for now
+  await new Promise(resolve => setTimeout(resolve, 1000));
   
   return {
-    success: true,
-    message: response,
+    success: false,
+    message: 'Chat functionality is not yet available. This feature will be implemented in a future update.',
+    error: 'Not implemented',
   };
 }
 
@@ -444,13 +473,6 @@ export function extractVideoId(url: string): string | null {
     if (match) return match[1];
   }
   return null;
-}
-
-/**
- * Simulate network delay for mock implementations
- */
-function simulateDelay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
