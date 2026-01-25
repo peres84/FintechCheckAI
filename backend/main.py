@@ -37,9 +37,10 @@ app = FastAPI(
 )
 
 # Add CORS middleware (before routers)
+# Include common development ports: Vite (5173), React (3000), Next.js (3000), Vue (8080)
 cors_origins = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000,http://127.0.0.1:3000"
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,http://127.0.0.1:8080,http://localhost:5174,http://127.0.0.1:5174"
 ).split(",")
 
 app.add_middleware(

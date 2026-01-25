@@ -1,7 +1,10 @@
 [project]
 name = "fintech-check-ai"
 version = "0.1.0"
-description = "Fact-checking platform for YouTube claims against quarterly reports."
+description = "AI-powered fact-checking platform for financial documents and video content. Verifies claims made in YouTube videos against official company quarterly reports with immutable versioned storage."
+authors = [
+    {name = "Sebastian Russo", email = ""}
+]
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.110.0",

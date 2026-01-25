@@ -1,7 +1,9 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "fintech-check-ai-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "AI-powered fact-checking platform for financial documents and video content",
+  "author": "Sebastian Russo (Rouxxel on Github)",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -7,7 +7,7 @@
         <mxCell id="3lfKHxG-FCPIrvg946ot-56" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeWidth=3;strokeColor=light-dark(#6F0000,#3333FF);fontSize=11;" value="" vertex="1">
           <mxGeometry height="380" width="480" x="250" y="200" as="geometry" />
         </mxCell>
-        <mxCell id="3lfKHxG-FCPIrvg946ot-9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeWidth=3;strokeColor=light-dark(#6F0000,#3333FF);fontSize=11;" value="Frontend (Lovable)" vertex="1">
+        <mxCell id="3lfKHxG-FCPIrvg946ot-9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeWidth=3;strokeColor=light-dark(#6F0000,#3333FF);fontSize=11;" value="Frontend (FinTech Check AI)" vertex="1">
           <mxGeometry height="30" width="100" x="250" y="170" as="geometry" />
         </mxCell>
         <mxCell id="3lfKHxG-FCPIrvg946ot-57" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=light-dark(#000000,#CCCC00);strokeWidth=3;" value="Backend" vertex="1">

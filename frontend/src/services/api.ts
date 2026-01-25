@@ -393,17 +393,25 @@ export async function verifyYouTubeVideo(
  */
 export async function getCompanies(): Promise<Company[]> {
   try {
+    console.log('[API] Fetching companies from:', `${API_BASE_URL}/api/companies`);
     const response = await fetch(`${API_BASE_URL}/api/companies`, {
       method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
 
     if (!response.ok) {
-      console.error('[API] getCompanies failed:', response.status);
+      const errorText = await response.text();
+      console.error('[API] getCompanies failed:', response.status, errorText);
       return [];
     }
 
     const data = await response.json();
-    return data.companies || [];
+    console.log('[API] getCompanies response:', data);
+    const companies = data.companies || [];
+    console.log('[API] Parsed companies:', companies);
+    return companies;
   } catch (error) {
     console.error('[API] getCompanies error:', error);
     return [];

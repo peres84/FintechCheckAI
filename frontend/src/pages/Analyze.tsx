@@ -37,6 +37,7 @@ export default function Analyze() {
       setIsLoadingCompanies(true);
       try {
         const companyList = await getCompanies();
+        console.log('[Analyze] Loaded companies:', companyList);
         setCompanies(companyList);
         if (companyList.length > 0) {
           setCompanyId(companyList[0].company_id);
@@ -123,7 +124,7 @@ export default function Analyze() {
           </p>
         </div>
 
-        <Card>
+        <Card className="relative">
           <CardHeader>
             <CardTitle>Content Input</CardTitle>
             <CardDescription>
@@ -131,29 +132,43 @@ export default function Analyze() {
             </CardDescription>
           </CardHeader>
           
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 relative">
             {/* Company Selection */}
             <div className="space-y-2">
               <Label htmlFor="company">Company *</Label>
               <Select
                 value={companyId}
-                onValueChange={setCompanyId}
+                onValueChange={(value) => {
+                  console.log('[Analyze] Company selected:', value);
+                  setCompanyId(value);
+                }}
                 disabled={isAnalyzing || isLoadingCompanies}
               >
-                <SelectTrigger id="company">
+                <SelectTrigger id="company" className="w-full">
                   <SelectValue placeholder={isLoadingCompanies ? "Loading companies..." : "Select a company"} />
                 </SelectTrigger>
-                <SelectContent>
-                  {companies.map((company) => (
-                    <SelectItem key={company.company_id} value={company.company_id}>
-                      {company.name} {company.ticker && `(${company.ticker})`}
+                <SelectContent className="z-[100]">
+                  {companies.length === 0 && !isLoadingCompanies ? (
+                    <SelectItem value="__no_companies__" disabled>
+                      No companies available
                     </SelectItem>
-                  ))}
+                  ) : (
+                    companies.map((company) => (
+                      <SelectItem key={company.company_id} value={company.company_id}>
+                        {company.name} {company.ticker && `(${company.ticker})`}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               {companies.length === 0 && !isLoadingCompanies && (
                 <p className="text-xs text-muted-foreground">
                   No companies available. Please upload documents for a company first.
+                </p>
+              )}
+              {companies.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {companies.length} company{companies.length !== 1 ? 'ies' : ''} available
                 </p>
               )}
             </div>

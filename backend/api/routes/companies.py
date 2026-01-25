@@ -1,10 +1,52 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import List
+from datetime import datetime
 
 from backend.core.logging import log_handler
 from backend.models.schemas import Company, CompanyListResponse
 
 router = APIRouter()
+
+
+def get_tower_service():
+    """Get Tower service instance (lazy initialization)."""
+    try:
+        from backend.services.tower_service import TowerService
+        return TowerService()
+    except RuntimeError as e:
+        log_handler.warning(f"Tower service unavailable: {e}")
+        return None
+
+
+def get_default_companies() -> List[Company]:
+    """
+    Get default list of companies.
+    
+    Returns a list of predefined companies that are available in the system.
+    """
+    return [
+        Company(
+            company_id="duolingo",
+            name="Duolingo",
+            ticker="DUOL",
+            industry="Education Technology",
+            created_at="2024-01-01T00:00:00Z"
+        ),
+        Company(
+            company_id="tesla",
+            name="Tesla",
+            ticker="TSLA",
+            industry="Electric Vehicles & Energy",
+            created_at="2024-01-01T00:00:00Z"
+        ),
+        Company(
+            company_id="openai",
+            name="OpenAI",
+            ticker=None,  # OpenAI is private
+            industry="Artificial Intelligence",
+            created_at="2024-01-01T00:00:00Z"
+        )
+    ]
 
 
 @router.get(
@@ -30,59 +72,49 @@ async def list_companies() -> CompanyListResponse:
     log_handler.info("Received request to list companies")
     
     try:
-        from backend.services.tower_service import TowerService
-        tower_service = TowerService()
+        # Try to get Tower service (may be None if unavailable)
+        tower_service = get_tower_service()
         
-        # Query distinct companies from documents table
-        try:
-            sql = "SELECT DISTINCT company_id FROM documents"
-            result = tower_service._client.execute_sql(sql)
-            
-            # Get unique company IDs
-            company_ids = set()
-            if isinstance(result, list):
-                for row in result:
-                    if isinstance(row, dict):
-                        company_ids.add(row.get("company_id"))
-                    elif isinstance(row, (list, tuple)) and len(row) > 0:
-                        company_ids.add(row[0])
-            
-            # Build company list (for now, use company_id as name)
-            # TODO: Query companies table when it's populated
-            companies = []
-            for company_id in company_ids:
-                if company_id:
-                    companies.append(Company(
-                        company_id=company_id,
-                        name=company_id.title(),  # Placeholder
-                        ticker=None,
-                        industry=None,
-                        created_at=None
-                    ))
-            
-            # If no companies found in documents, return placeholder
-            if not companies:
-                companies = [
-                    Company(
-                        company_id="duolingo",
-                        name="Duolingo",
-                        ticker="DUOL",
-                        industry="Education Technology",
-                        created_at="2024-01-01T00:00:00Z"
-                    )
-                ]
-        except Exception as e:
-            log_handler.warning(f"Error querying Tower for companies: {e}, using placeholder")
-            # Fallback to placeholder
-            companies = [
-                Company(
-                    company_id="duolingo",
-                    name="Duolingo",
-                    ticker="DUOL",
-                    industry="Education Technology",
-                    created_at="2024-01-01T00:00:00Z"
-                )
-            ]
+        companies_dict = {}
+        
+        # Start with default companies
+        for default_company in get_default_companies():
+            companies_dict[default_company.company_id] = default_company
+        
+        # If Tower is available, try to query for additional companies
+        if tower_service is not None:
+            try:
+                sql = "SELECT DISTINCT company_id FROM documents"
+                result = tower_service._client.execute_sql(sql)
+                
+                # Get unique company IDs
+                company_ids = set()
+                if isinstance(result, list):
+                    for row in result:
+                        if isinstance(row, dict):
+                            company_ids.add(row.get("company_id"))
+                        elif isinstance(row, (list, tuple)) and len(row) > 0:
+                            company_ids.add(row[0])
+                
+                # Add any companies found in documents (preserve defaults)
+                for company_id in company_ids:
+                    if company_id:
+                        # Only add if not already in defaults (to preserve default company data)
+                        if company_id not in companies_dict:
+                            companies_dict[company_id] = Company(
+                                company_id=company_id,
+                                name=company_id.title(),  # Placeholder
+                                ticker=None,
+                                industry=None,
+                                created_at=None
+                            )
+            except Exception as e:
+                log_handler.warning(f"Error querying Tower for companies: {e}, using default companies only")
+        
+        companies = list(companies_dict.values())
+        
+        # Sort by name for consistent ordering
+        companies.sort(key=lambda x: x.name)
         
         response = CompanyListResponse(
             companies=companies,
@@ -123,35 +155,36 @@ async def get_company(company_id: str) -> Company:
     log_handler.info(f"Received request for company: {company_id}")
     
     try:
-        from backend.services.tower_service import TowerService
-        tower_service = TowerService()
+        # Check if it's a default company first
+        default_companies = {c.company_id: c for c in get_default_companies()}
         
-        # Check if company has documents in Tower
-        documents = tower_service.get_documents_by_company(company_id)
+        if company_id in default_companies:
+            return default_companies[company_id]
         
-        if documents or company_id == "duolingo":  # Allow duolingo as fallback
-            # TODO: Query companies table when it's populated
-            company = Company(
-                company_id=company_id,
-                name=company_id.title(),  # Placeholder
-                ticker=None,
-                industry=None,
-                created_at=None
-            )
-            
-            # If duolingo, use known data
-            if company_id == "duolingo":
-                company.name = "Duolingo"
-                company.ticker = "DUOL"
-                company.industry = "Education Technology"
-                company.created_at = "2024-01-01T00:00:00Z"
-            
-            return company
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Company '{company_id}' not found"
-            )
+        # Try to get Tower service (may be None if unavailable)
+        tower_service = get_tower_service()
+        
+        # If Tower is available, check for documents
+        if tower_service is not None:
+            try:
+                documents = tower_service.get_documents_by_company(company_id)
+                if documents:
+                    # Company has documents, return placeholder data
+                    return Company(
+                        company_id=company_id,
+                        name=company_id.title(),  # Placeholder
+                        ticker=None,
+                        industry=None,
+                        created_at=None
+                    )
+            except Exception as e:
+                log_handler.warning(f"Error checking Tower for company {company_id}: {e}")
+        
+        # Company not found
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Company '{company_id}' not found"
+        )
             
     except HTTPException:
         raise
