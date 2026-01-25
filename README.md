@@ -20,7 +20,9 @@ A fact-checking platform that verifies claims made in YouTube videos against off
 
 ## Quick Start
 
-### Backend
+### Option 1: Local Development (Recommended for Development)
+
+#### Backend
 
 1. **Install dependencies:**
    ```bash
@@ -47,7 +49,7 @@ A fact-checking platform that verifies claims made in YouTube videos against off
    - API Docs: http://127.0.0.1:8000/docs
    - Health Check: http://127.0.0.1:8000/health
 
-### Frontend
+#### Frontend
 
 1. **Install dependencies:**
    ```bash
@@ -67,6 +69,34 @@ A fact-checking platform that verifies claims made in YouTube videos against off
    ```
 
    The frontend will be available at `http://localhost:8080`
+
+### Option 2: Docker (Recommended for Production/Testing)
+
+#### Full Stack (Backend + Frontend)
+
+```bash
+# Start both services
+docker-compose up
+
+# Or in detached mode
+docker-compose up -d
+```
+
+#### Backend Only
+
+```bash
+# Start backend service
+docker-compose up backend
+```
+
+#### Frontend Only
+
+```bash
+# Start frontend service
+docker-compose up frontend
+```
+
+See [DOCKER_SETUP.md](DOCKER_SETUP.md) for detailed Docker instructions.
 
 ## Deployment
 

@@ -3,13 +3,13 @@ version: '3.8'
 services:
   backend:
     build:
-      context: .
+      context: ..
       dockerfile: backend/Dockerfile
     container_name: fintech-check-ai-backend
     ports:
-      - "${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
+      - "8000:${PORT:-8000}"
     environment:
-      - PORT=${BACKEND_PORT:-8000}
+      - PORT=${PORT:-8000}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - TOWER_API_KEY=${TOWER_API_KEY}
       - RUNPOD_API_KEY=${RUNPOD_API_KEY}
@@ -30,16 +30,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: fintech-check-ai-frontend
-    ports:
-      - "${FRONTEND_PORT:-8080}:80"
-    environment:
-      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
-    depends_on:
-      - backend
-    restart: unless-stopped
