@@ -35,10 +35,16 @@ A fact-checking platform that verifies claims made in YouTube videos against off
    # Edit .env with your API keys
    ```
 
-3. **Start the server:**
+3. **Start the server (IMPORTANT: Run from project root, not backend/):**
    ```bash
+   # Make sure you're in the project root directory
+   cd C:\Users\Acer\Documents\GitHub\Fintech_CheckAI
+   
+   # Then run:
    python main.py
    ```
+   
+   ⚠️ **Don't run from `backend/` directory!** The `main.py` file is in the project root.
    
    For development with auto-reload:
    ```bash
@@ -48,14 +54,18 @@ A fact-checking platform that verifies claims made in YouTube videos against off
    The API will be available at `http://127.0.0.1:8000`
    - API Docs: http://127.0.0.1:8000/docs
    - Health Check: http://127.0.0.1:8000/health
+   
+   **Note:** The warnings about `fitz` (PDF processor) and `opik` are normal - these are optional dependencies.
 
 #### Frontend
 
-1. **Install dependencies:**
+1. **Install dependencies (REQUIRED - must run this first!):**
    ```bash
    cd frontend
    npm install
    ```
+   
+   ⚠️ **Important:** You must run `npm install` before `npm run dev`. This installs all dependencies including `vite`.
 
 2. **Set up environment variables (optional):**
    ```bash
@@ -69,6 +79,8 @@ A fact-checking platform that verifies claims made in YouTube videos against off
    ```
 
    The frontend will be available at `http://localhost:8080`
+   
+   **Note:** If you see `'vite' is not recognized`, it means dependencies aren't installed. Run `npm install` first.
 
 ### Option 2: Docker (Recommended for Production/Testing)
 
