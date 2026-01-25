@@ -1,0 +1,9 @@
+[project]
+name = "verification-logs"
+version = "0.1.0"
+description = "Store verification results and audit trail"
+requires-python = ">=3.11"
+dependencies = [
+    "pyarrow",
+    "tower",
+]

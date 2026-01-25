@@ -6,6 +6,7 @@ from backend.services.ai_agent_service import ai_agent_service
 from backend.services.youtube_service import fetch_transcript
 from backend.services.tower_service import TowerService
 from backend.services.rag_service import retrieve_chunks_from_tower
+from backend.core.config import config
 from backend.agents.verification_agent import verify_claim
 
 router = APIRouter()
@@ -74,10 +75,12 @@ async def verify_claims(payload: VerificationRequest) -> VerificationResponse:
             
             # Retrieve relevant chunks using RAG
             log_handler.info(f"Step 4: Retrieving chunks for claim: {claim_text[:50]}...")
-            chunks = retrieve_chunks_from_tower(
+            search_method = config.get("rag", {}).get("default_search_method", "hybrid")
+            chunks = await retrieve_chunks_from_tower(
                 document_id=document_id,
                 query=claim_text,
-                top_k=3
+                top_k=3,
+                search_method=search_method
             )
             
             # Verify claim against chunks

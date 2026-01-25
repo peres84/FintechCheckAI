@@ -158,12 +158,18 @@ FinTech Check AI is a fact-checking platform that verifies claims made in YouTub
 **Responsibilities:**
 - Retrieve relevant document chunks
 - Query Tower storage
-- Fallback to keyword matching
+- Support multiple search methods: keyword, semantic, and hybrid
+
+**Search Methods:**
+- **Keyword Search**: Token-based matching (fast, no embeddings required)
+- **Semantic Search**: Cosine similarity on embeddings (requires OpenAI API)
+- **Hybrid Search**: Combines semantic and keyword scores (default, best accuracy)
 
 **Integration:**
 - Uses Tower `rag-chunk-query` app
-- Supports semantic search (future)
+- Generates query embeddings using OpenAI `text-embedding-3-small`
 - Returns top-k chunks with relevance scores
+- Configurable search method and weights via `config.json`
 
 #### Tower Service
 **File:** `backend/services/tower_service.py`
@@ -299,9 +305,20 @@ FinTech Check AI is a fact-checking platform that verifies claims made in YouTub
 #### Verification Logs App
 **App:** `verification-logs/`
 
-**Status:** Placeholder (not yet implemented)
+**Status:** ✅ Implemented
 
-**Future:** Store verification results and audit trail
+**Responsibilities:**
+- Store verification results in Tower
+- Track YouTube URLs and company IDs
+- Record verification verdicts
+- Provide audit trail for verifications
+
+**Tables:** `verifications`
+
+**Methods:**
+- `call_verification_logs()` - Store verification result
+- `get_verifications_by_company()` - Query by company
+- `get_verifications_by_url()` - Query by YouTube URL
 
 ---
 
@@ -503,13 +520,14 @@ See `docs/api.md` for complete list.
 
 ## Future Enhancements
 
-1. **Semantic Search:** Use embeddings for better chunk retrieval
-2. **PDF Processing:** Complete ETL pipeline
+1. ✅ **Semantic Search:** Use embeddings for better chunk retrieval - **COMPLETED**
+2. ✅ **PDF Processing:** Complete ETL pipeline - **COMPLETED**
 3. **Caching:** Redis for transcripts and claims
 4. **Authentication:** API key management
 5. **Webhooks:** Notifications for completed verifications
 6. **Batch Processing:** Process multiple videos
 7. **Multi-language:** Support non-English transcripts
+8. **Vector Indexing:** Optimize semantic search with vector databases (e.g., Pinecone, Weaviate)
 
 ---
 

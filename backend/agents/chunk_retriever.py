@@ -1,6 +1,7 @@
 from typing import Any, Optional
 from backend.services.rag_service import retrieve_chunks_from_tower, retrieve_chunks_simple
 from backend.core.logging import log_handler
+from backend.core.config import config
 
 
 async def retrieve_chunks(
@@ -26,13 +27,15 @@ async def retrieve_chunks(
     # If document_id provided, try Tower RAG first
     if document_id:
         try:
-            chunks = retrieve_chunks_from_tower(
+            search_method = config.get("rag", {}).get("default_search_method", "hybrid")
+            chunks = await retrieve_chunks_from_tower(
                 document_id=document_id,
                 query=claim,
-                top_k=top_k
+                top_k=top_k,
+                search_method=search_method
             )
             if chunks:
-                log_handler.info(f"Retrieved {len(chunks)} chunks from Tower")
+                log_handler.info(f"Retrieved {len(chunks)} chunks from Tower using {search_method} search")
                 return chunks
         except Exception as e:
             log_handler.warning(f"Tower RAG failed: {e}, returning empty list")

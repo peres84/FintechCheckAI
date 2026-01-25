@@ -190,3 +190,79 @@ class TowerService:
             error_msg = f"Error calling chunk storage: {e}"
             log_handler.error(error_msg)
             raise RuntimeError(error_msg) from e
+    
+    def call_verification_logs(
+        self,
+        youtube_url: str,
+        company_id: str,
+        verdict: str = "UNKNOWN",
+        verification_id: Optional[str] = None
+    ) -> dict[str, Any]:
+        """
+        Call verification-logs Tower app to store verification result.
+        
+        Args:
+            youtube_url: YouTube video URL that was verified
+            company_id: Company identifier
+            verdict: Verification verdict (VERIFIED, CONTRADICTED, NOT_FOUND, etc.)
+            verification_id: Optional verification ID (auto-generated if not provided)
+            
+        Returns:
+            Result from verification logs app
+        """
+        try:
+            import sys
+            import importlib.util
+            verification_logs_path = Path(__file__).parent.parent / "tower" / "apps" / "verification-logs" / "main.py"
+            
+            if not verification_logs_path.exists():
+                raise FileNotFoundError(f"Verification logs app not found at {verification_logs_path}")
+            
+            spec = importlib.util.spec_from_file_location("verification_logs", verification_logs_path)
+            if spec and spec.loader:
+                logs_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(logs_module)
+                
+                # Prepare event
+                event = {
+                    "verification_id": verification_id,
+                    "youtube_url": youtube_url,
+                    "company_id": company_id,
+                    "verdict": verdict,
+                    "catalog": self._catalog,
+                    "namespace": self._namespace,
+                    "dry_run": False
+                }
+                
+                # Create store and call handler
+                store = logs_module.TowerVerificationStore(
+                    catalog=self._catalog,
+                    namespace=self._namespace
+                )
+                
+                result = logs_module.handle_event(event, store)
+                log_handler.info(f"Verification log stored: {result.get('verification_id')}")
+                return result
+            else:
+                raise RuntimeError("Failed to load verification logs module")
+                
+        except Exception as e:
+            error_msg = f"Error calling verification logs: {e}"
+            log_handler.error(error_msg)
+            raise RuntimeError(error_msg) from e
+    
+    def get_verifications_by_company(self, company_id: str) -> list[dict[str, Any]]:
+        """Get all verifications for a company."""
+        sql = "SELECT * FROM verifications WHERE company_id = :company_id ORDER BY created_at DESC"
+        result = self._client.execute_sql(sql, {"company_id": company_id})
+        if isinstance(result, list):
+            return result
+        return []
+    
+    def get_verifications_by_url(self, youtube_url: str) -> list[dict[str, Any]]:
+        """Get all verifications for a YouTube URL."""
+        sql = "SELECT * FROM verifications WHERE youtube_url = :youtube_url ORDER BY created_at DESC"
+        result = self._client.execute_sql(sql, {"youtube_url": youtube_url})
+        if isinstance(result, list):
+            return result
+        return []

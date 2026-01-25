@@ -26,6 +26,13 @@
         "namespace": "default"
     },
 
+    "rag": {
+        "default_search_method": "hybrid",
+        "semantic_weight": 0.7,
+        "keyword_weight": 0.3,
+        "embedding_model": "text-embedding-3-small"
+    },
+
     "logging":{
         "logging_level":"debug",
         "dir_name":"logs",

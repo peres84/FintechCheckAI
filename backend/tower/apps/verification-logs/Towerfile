@@ -1,1 +1,45 @@
-# Towerfile placeholder for verification logs app
+[app]
+name = "verification-logs"
+script = "./main.py"
+source = [
+    "./*.py",
+    "pyproject.toml",
+]
+schedule = ""
+description = "Store verification results and audit trail"
+import_paths = []
+
+[[parameters]]
+name = "VERIFICATION_ID"
+description = "Verification ID (UUID, auto-generated if not provided)"
+default = ""
+
+[[parameters]]
+name = "YOUTUBE_URL"
+description = "YouTube video URL that was verified"
+default = ""
+
+[[parameters]]
+name = "COMPANY_ID"
+description = "Company identifier"
+default = ""
+
+[[parameters]]
+name = "VERDICT"
+description = "Overall verification verdict (VERIFIED, CONTRADICTED, NOT_FOUND, etc.)"
+default = "UNKNOWN"
+
+[[parameters]]
+name = "CATALOG"
+description = "Tower catalog name"
+default = "database_catalog"
+
+[[parameters]]
+name = "NAMESPACE"
+description = "Tower namespace"
+default = "default"
+
+[[parameters]]
+name = "DRY_RUN"
+description = "Skip writes when true"
+default = "false"
