@@ -10,7 +10,18 @@ from backend.core.config import config
 from backend.agents.verification_agent import verify_claim
 
 router = APIRouter()
-tower_service = TowerService()
+
+
+def get_tower_service() -> TowerService:
+    """Get Tower service instance (lazy initialization)."""
+    try:
+        return TowerService()
+    except RuntimeError as e:
+        log_handler.warning(f"Tower service unavailable: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Document storage service is currently unavailable"
+        )
 
 
 @router.post("/verify", response_model=VerificationResponse)
@@ -53,6 +64,7 @@ async def verify_claims(payload: VerificationRequest) -> VerificationResponse:
         
         # Step 3: Get documents for company from Tower
         log_handler.info(f"Step 3: Retrieving documents for company: {payload.company_id}")
+        tower_service = get_tower_service()
         documents = tower_service.get_documents_by_company(payload.company_id)
         
         if not documents:

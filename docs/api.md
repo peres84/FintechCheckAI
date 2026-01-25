@@ -327,12 +327,27 @@ Verify claims from YouTube video against company documents in Tower.
 
 Upload a document to Tower for processing.
 
-**Request Body:**
-```json
-{
-  "company_id": "duolingo",
-  "pdf_url": "https://example.com/document.pdf"
-}
+**Request:** Multipart form data
+- `company_id`: Required - Company identifier
+- `pdf_file`: Optional - PDF file to upload
+- `pdf_url`: Optional - URL to PDF file
+- `version`: Optional - Document version (default: "v1")
+
+**Note:** Either `pdf_file` or `pdf_url` must be provided. If both are provided, `pdf_file` takes precedence.
+
+**File Upload Example:**
+```bash
+curl -X POST "http://127.0.0.1:8000/api/documents" \
+  -F "company_id=duolingo" \
+  -F "pdf_file=@document.pdf" \
+  -F "version=v1"
+```
+
+**URL Upload Example:**
+```bash
+curl -X POST "http://127.0.0.1:8000/api/documents" \
+  -F "company_id=duolingo" \
+  -F "pdf_url=https://example.com/document.pdf"
 ```
 
 **Response:**
@@ -343,13 +358,43 @@ Upload a document to Tower for processing.
 }
 ```
 
-**Note:** Currently only supports PDF URLs. File upload will be added in future versions.
+**File Validation:**
+- File must be a PDF (.pdf extension)
+- Maximum file size: 50MB
+- File is validated before processing
 
-**Workflow:**
-1. Downloads PDF from URL
-2. Generates SHA256 hash
-3. Stores document metadata in Tower
-4. Returns document_id for chunk storage
+**Workflow (File Upload):**
+1. Validates PDF file (type, size, content)
+2. Processes PDF to extract metadata
+3. Uploads PDF to ImageKit temporarily
+4. Calls document-ingestion Tower app with ImageKit URL
+5. Generates SHA256 hash
+6. Stores document metadata in Tower
+7. Cleans up temporary ImageKit file
+8. Returns document_id for chunk storage
+
+**Workflow (URL Upload):**
+1. Validates URL format
+2. Calls document-ingestion Tower app
+3. Downloads PDF from URL
+4. Generates SHA256 hash
+5. Stores document metadata in Tower
+6. Returns document_id for chunk storage
+
+#### `POST /api/documents/json`
+Upload a document using JSON body (backward compatibility).
+
+**Request Body:**
+```json
+{
+  "company_id": "duolingo",
+  "pdf_url": "https://example.com/document.pdf"
+}
+```
+
+**Response:** Same as `/api/documents`
+
+**Note:** For file uploads, use the main `/api/documents` endpoint with multipart/form-data.
 
 ---
 
@@ -478,8 +523,18 @@ curl -X POST "http://127.0.0.1:8000/api/ai-agent/verify-youtube-video" \
 ### Document Management
 
 ```bash
-# Upload document
+# Upload document from file
 curl -X POST "http://127.0.0.1:8000/api/documents" \
+  -F "company_id=duolingo" \
+  -F "pdf_file=@document.pdf"
+
+# Upload document from URL
+curl -X POST "http://127.0.0.1:8000/api/documents" \
+  -F "company_id=duolingo" \
+  -F "pdf_url=https://example.com/document.pdf"
+
+# Upload document (JSON format - backward compatibility)
+curl -X POST "http://127.0.0.1:8000/api/documents/json" \
   -H "Content-Type: application/json" \
   -d '{
     "company_id": "duolingo",
@@ -511,6 +566,9 @@ See `.env.example` for template.
 ## Notes
 
 - All timestamps are in ISO 8601 format (UTC)
-- File uploads are limited to .txt files for transcript and shareholder letter
+- File uploads:
+  - PDF files: Up to 50MB, validated before processing
+  - Text files (.txt): For transcript and shareholder letter uploads
 - PDF processing requires Tower.dev integration
 - AI model can be configured in `backend/core/config.json`
+- RAG search method can be configured in `backend/core/config.json` (keyword, semantic, or hybrid)

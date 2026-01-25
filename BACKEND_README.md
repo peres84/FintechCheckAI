@@ -313,12 +313,26 @@ Verify claims from YouTube video against company documents in Tower.
 #### `POST /api/documents`
 Upload a document to Tower for processing.
 
-**Request Body:**
-```json
-{
-  "company_id": "duolingo",
-  "pdf_url": "https://example.com/document.pdf"
-}
+**Request:** Multipart form data
+- `company_id`: Required - Company identifier
+- `pdf_file`: Optional - PDF file to upload
+- `pdf_url`: Optional - URL to PDF file
+- `version`: Optional - Document version (default: "v1")
+
+**Note:** Either `pdf_file` or `pdf_url` must be provided.
+
+**File Upload:**
+```bash
+curl -X POST "http://127.0.0.1:8000/api/documents" \
+  -F "company_id=duolingo" \
+  -F "pdf_file=@document.pdf"
+```
+
+**URL Upload:**
+```bash
+curl -X POST "http://127.0.0.1:8000/api/documents" \
+  -F "company_id=duolingo" \
+  -F "pdf_url=https://example.com/document.pdf"
 ```
 
 **Response:**
@@ -329,13 +343,32 @@ Upload a document to Tower for processing.
 }
 ```
 
-**Note:** Currently only supports PDF URLs. File upload will be added in future versions.
+**File Validation:**
+- File must be a PDF (.pdf extension)
+- Maximum file size: 50MB
+- File is validated before processing
 
 **Workflow:**
-1. Downloads PDF from URL
-2. Generates SHA256 hash
-3. Stores document metadata in Tower
-4. Returns document_id for chunk storage
+1. Validates input (file or URL)
+2. For files: Validates PDF, uploads to ImageKit temporarily
+3. Calls document-ingestion Tower app
+4. Generates SHA256 hash
+5. Stores document metadata in Tower
+6. Cleans up temporary files
+7. Returns document_id
+
+#### `POST /api/documents/json`
+Upload a document using JSON body (backward compatibility).
+
+**Request Body:**
+```json
+{
+  "company_id": "duolingo",
+  "pdf_url": "https://example.com/document.pdf"
+}
+```
+
+**Response:** Same as `/api/documents`
 
 ---
 
