@@ -36,6 +36,24 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add CORS middleware (before routers)
+cors_origins = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000,http://127.0.0.1:3000"
+).split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Setup rate limiting (before routers)
+setup_rate_limiting(app)
+
+# Include routers
 app.include_router(youtube.router, prefix="/api/youtube", tags=["youtube"])
 app.include_router(ai_agent.router, prefix="/api/ai-agent", tags=["ai-agent"])
 app.include_router(verification.router, prefix="/api", tags=["verification"])
@@ -51,8 +69,46 @@ def health() -> dict:
     return {"status": "ok", "service": "FinTech Check AI"}
 
 
-# Note: For production deployment, use the root-level main.py instead:
-# python main.py --host 0.0.0.0 --port $PORT
-#
-# This file is kept for backward compatibility and direct uvicorn usage:
-# uvicorn backend.main:app --reload
+# Server startup (for direct execution)
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", config["network"]["server_port"]))
+    host = config["network"]["host"]
+    
+    log_handler.info("=" * 60)
+    log_handler.info("FinTech Check AI Backend Server")
+    log_handler.info("=" * 60)
+    log_handler.info(f"Starting server at http://{host}:{port}")
+    log_handler.info(f"API Documentation: http://{host}:{port}/docs")
+    log_handler.info(f"Health Check: http://{host}:{port}/health")
+    log_handler.info("=" * 60)
+    log_handler.warning("NOTE: For best results, run 'python main.py' from project root instead!")
+    log_handler.info("=" * 60)
+    
+    try:
+        # Use import string for reload/workers support
+        if config["network"]["reload"]:
+            uvicorn.run(
+                "backend.main:app",  # Import string for reload support
+                host=host,
+                port=port,
+                reload=True,
+                workers=1,  # Must be 1 when reload=True
+                proxy_headers=config["network"]["proxy_headers"],
+                log_level="info"
+            )
+        else:
+            uvicorn.run(
+                app,  # Can use app object when reload=False
+                host=host,
+                port=port,
+                reload=False,
+                workers=config["network"]["workers"],
+                proxy_headers=config["network"]["proxy_headers"],
+                log_level="info"
+            )
+    except KeyboardInterrupt:
+        log_handler.info("Server stopped by user")
+    except Exception as e:
+        log_handler.error(f"Server startup failed: {e}")
+        sys.exit(1)
