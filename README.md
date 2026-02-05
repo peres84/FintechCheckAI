@@ -5,11 +5,23 @@ A fact-checking platform that verifies claims made in YouTube videos against off
 ## Stack
 
 - FastAPI (Python 3.11+)
+- **Node.js 18+** (Required for yt-dlp to extract YouTube videos properly)
 - UV (Python package manager)
 - Tower.dev + Apache Iceberg
 - RunPod (OCR via Marker-PDF/DocTR)
 - LangChain + OpenAI
 - Opik for observability
+
+## Prerequisites
+
+**⚠️ IMPORTANT: Node.js 18+ is REQUIRED**
+
+Node.js is required for the backend to properly extract audio from YouTube videos when captions are not available. Without Node.js, you will see warnings and some videos may fail to process.
+
+**Install Node.js:**
+- **Windows/Mac:** Download from https://nodejs.org/ (LTS version recommended)
+- **Linux:** `sudo apt install nodejs npm` (Ubuntu/Debian) or use your package manager
+- **Verify installation:** `node --version` (should show v18 or higher)
 
 ## Repository layout
 
@@ -22,20 +34,29 @@ A fact-checking platform that verifies claims made in YouTube videos against off
 
 ### Option 1: Local Development (Recommended for Development)
 
+**⚠️ Before starting, ensure Node.js 18+ is installed!** Without it, YouTube video processing will fail.
+
 #### Backend
 
-1. **Install dependencies:**
+1. **Verify Node.js is installed:**
+   ```bash
+   node --version  # Should show v18.0.0 or higher
+   ```
+   
+   If Node.js is not installed, download it from https://nodejs.org/
+
+2. **Install dependencies:**
    ```bash
    pip install -r backend/requirements.txt
    ```
 
-2. **Set up environment variables:**
+3. **Set up environment variables:**
    ```bash
    cp .env.example .env
    # Edit .env with your API keys
    ```
 
-3. **Start the server (IMPORTANT: Run from project root, not backend/):**
+4. **Start the server (IMPORTANT: Run from project root, not backend/):**
    ```bash
    # Make sure you're in the project root directory
    cd C:\Users\Acer\Documents\GitHub\Fintech_CheckAI
@@ -126,3 +147,18 @@ See `.env.example` for required keys. Required variables:
 - `IMAGEKIT_URL_ENDPOINT` - ImageKit URL endpoint
 - `TOWER_API_KEY` - Tower.dev API key (optional)
 - `OPIK_API_KEY` - Opik API key (optional)
+
+## Troubleshooting
+
+### YouTube Video Processing Issues
+
+If you see warnings like "No supported JavaScript runtime could be found" when processing YouTube videos:
+
+1. **Install Node.js 18+** from https://nodejs.org/
+2. **Verify installation:**
+   ```bash
+   node --version  # Should show v18.0.0 or higher
+   ```
+3. **Restart your backend server** after installing Node.js
+
+**Why is Node.js needed?** The `yt-dlp` library (used for downloading YouTube audio) requires a JavaScript runtime to extract some video formats. Without it, some videos may fail to process or certain formats may be skipped.

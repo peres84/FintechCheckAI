@@ -5,8 +5,32 @@ Get FinTech Check AI running locally in minutes!
 ## Prerequisites
 
 - **Python 3.11+** installed
-- **Node.js 18+** and npm installed
+- **Node.js 18+** and npm installed ⚠️ **REQUIRED** - Without Node.js, YouTube video processing will fail
 - API keys (see below)
+
+### Installing Node.js
+
+**⚠️ Node.js is REQUIRED for the backend to work properly!**
+
+Node.js is needed for `yt-dlp` to extract YouTube videos when captions are unavailable. Without it, you'll see warnings and video processing may fail.
+
+**Installation:**
+- **Windows/Mac:** Download LTS version from https://nodejs.org/
+- **Linux:** 
+  ```bash
+  # Ubuntu/Debian
+  sudo apt update && sudo apt install nodejs npm
+  
+  # Or use nvm (recommended)
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+  nvm install 18
+  ```
+
+**Verify installation:**
+```bash
+node --version  # Should show v18.0.0 or higher
+npm --version   # Should show 9.0.0 or higher
+```
 
 ## Step 1: Clone and Setup
 

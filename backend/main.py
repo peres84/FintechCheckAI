@@ -13,10 +13,14 @@ project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from project root
+env_path = project_root / '.env'
+if env_path.exists():
+    load_dotenv(env_path, override=True)
+else:
+    load_dotenv(override=True)
 
-# Import with absolute paths
+# Import with absolute paths (after loading env vars)
 from backend.core.logging import log_handler
 from backend.core.config import config
 from backend.api.routes import documents, verification, youtube, ai_agent, companies, version_diff

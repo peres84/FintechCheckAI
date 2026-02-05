@@ -16,13 +16,24 @@ import tempfile
 import shutil
 import base64
 import requests
+from pathlib import Path
 from dotenv import load_dotenv
 from typing import Any, Dict, Tuple
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from project root or backend directory
+project_root = Path(__file__).parent.parent.parent
+backend_dir = Path(__file__).parent.parent
+env_paths = [project_root / '.env', backend_dir / '.env']
 
-# Import logging
+for env_path in env_paths:
+    if env_path.exists():
+        load_dotenv(env_path, override=True)
+        break
+else:
+    # If no .env file found, still call load_dotenv() to load from environment
+    load_dotenv(override=True)
+
+# Import logging (after loading env vars)
 from backend.core.logging import log_handler
 
 # ================= Configuration =================
@@ -133,6 +144,9 @@ async def _download_audio_ytdlp(video_url: str, output_dir: str) -> str:
     
     log_handler.info(f"Starting audio download for video {filename} using yt-dlp")
     
+    # Find Node.js executable path (required for yt-dlp to extract YouTube videos)
+    node_path = shutil.which('node')
+    
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': os.path.join(output_dir, f'video_{filename}_{current_time}.%(ext)s'),
@@ -140,6 +154,18 @@ async def _download_audio_ytdlp(video_url: str, output_dir: str) -> str:
         'audioformat': 'mp4',
         'quiet': True,
     }
+    
+    # Configure JavaScript runtime for yt-dlp (required for YouTube extraction)
+    # This eliminates the "No supported JavaScript runtime" warnings
+    # Format: {'runtime_name': {'path': 'optional_path'}} or {'runtime_name': {}}
+    if node_path:
+        # Use full path to Node.js for better reliability
+        ydl_opts['js_runtimes'] = {'node': {'path': node_path}}
+        log_handler.info(f"Configured yt-dlp to use Node.js: {node_path}")
+    else:
+        # Fallback: try 'node' if it's in PATH (may not work on all systems)
+        ydl_opts['js_runtimes'] = {'node': {}}
+        log_handler.warning("Node.js not found in PATH, using 'node' as fallback (may not work)")
 
     try:
         def download_sync():

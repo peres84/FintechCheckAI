@@ -21,10 +21,16 @@ Complete deployment instructions for FinTech Check AI platform.
 ### Required Software
 
 - **Python 3.11+** - Backend runtime
-- **Node.js 18+** or **Bun** - Frontend build tool
-- **UV** - Python package manager
+- **Node.js 18+** - ⚠️ **REQUIRED** for both frontend and backend
+  - **Frontend:** Build tool and development server
+  - **Backend:** Required by `yt-dlp` for YouTube video extraction (when captions unavailable)
+  - **Installation:** https://nodejs.org/ (LTS version recommended)
+  - **Verify:** `node --version` should show v18.0.0 or higher
+- **UV** - Python package manager (optional, pip works too)
 - **Docker & Docker Compose** - Containerization (optional)
 - **Git** - Version control
+
+**⚠️ Important:** Without Node.js, YouTube video processing will fail with warnings about missing JavaScript runtime. Some videos may not be processable.
 
 ### Required Accounts & API Keys
 
@@ -518,6 +524,17 @@ TOWER_API_KEY=your-key
 - Verify backend is running on correct port
 - Check `VITE_API_BASE_URL` in frontend `.env`
 - Add CORS middleware if needed (see FastAPI docs)
+
+#### 7. YouTube Video Processing Warnings/Failures
+
+**Problem:** Warnings about "No supported JavaScript runtime" or videos failing to process
+
+**Solution:**
+- **Install Node.js 18+** from https://nodejs.org/
+- Verify installation: `node --version` (should show v18+)
+- Restart backend server after installing Node.js
+- Node.js is required for `yt-dlp` to extract YouTube videos when captions are unavailable
+- Without Node.js, some video formats may be skipped and processing may fail
 
 ### Debug Mode
 
